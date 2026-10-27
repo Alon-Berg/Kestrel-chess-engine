@@ -17,7 +17,9 @@ g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel_final.e
 ```
 
 `net_weights.h` and `net_weights2.h` are read by the compiler (they are `#include`d), so keep them next to the source. Put `claude_book.txt` next to the exe to use the book
-(the file keeps its old name; it is not read when `OwnBook` is false). `-march=x86-64-v3` needs a CPU with AVX2 (Intel Haswell / AMD Zen or newer). Prebuilt binaries are published on the repository's Releases page (with their SHA-256).
+(the file keeps its old name; it is not read when `OwnBook` is false). `-march=x86-64-v3` needs a CPU with AVX2 (Intel Haswell / AMD Zen or newer).
+Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: see [docs/BUILDING.md](docs/BUILDING.md). Prebuilt binaries for Windows, Linux and macOS are published on the repository's Releases page (with their SHA-256);
+the Windows x86-64-v3 build is the one that went through the full test suite, the Linux and macOS builds have been compiled but not run (no such machine was available).
 
 ## Measured strength (relative to Claude 39, the previous release)
 
