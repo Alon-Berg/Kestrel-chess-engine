@@ -14,8 +14,17 @@
 #include <thread>
 #include <unordered_map>
 #include <vector>
-#include <immintrin.h>
+#if defined(__x86_64__) || defined(__i386__)
 #include <cpuid.h>
+#endif
+#ifdef __BMI2__
+#include <immintrin.h>                               // _pext_u64
+#endif
+#if defined(__linux__)
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -25,6 +34,33 @@
 #endif
 using namespace std;
 typedef unsigned long long U64;
+#ifdef _WIN32
+using KThread = std::thread;
+#else
+#include <pthread.h>
+#include <stdexcept>
+#include <exception>
+struct KThread {      // 40.1: std::thread with an 8 MB stack (the default thread stack is 128 KB with musl and 512 KB on macOS; one search frame is ~2.7 KB and a search can reach 128 plies)
+    struct Fn { virtual void run() = 0; virtual ~Fn() {} };
+    template <class B> struct Impl : Fn { B b; explicit Impl(B x) : b(x) {} void run() override { b(); } };
+    pthread_t t; bool on = false; Fn* fn = nullptr;
+    KThread() {}
+    template <class F, class... A> explicit KThread(F f, A... a) {
+        auto bound = [f, a...]() { f(a...); };
+        fn = new Impl<decltype(bound)>(bound);
+        pthread_attr_t at; pthread_attr_init(&at); pthread_attr_setstacksize(&at, (size_t)8 << 20);
+        int rc = pthread_create(&t, &at, [](void* p) -> void* { static_cast<Fn*>(p)->run(); return nullptr; }, fn);
+        pthread_attr_destroy(&at);
+        if (rc) { delete fn; fn = nullptr; throw std::runtime_error("cannot start thread"); }
+        on = true;
+    }
+    KThread(KThread&& o) noexcept : t(o.t), on(o.on), fn(o.fn) { o.on = false; o.fn = nullptr; }
+    KThread& operator=(KThread&& o) noexcept { if (on) std::terminate(); t = o.t; on = o.on; fn = o.fn; o.on = false; o.fn = nullptr; return *this; }
+    bool joinable() const { return on; }
+    void join() { if (on) { pthread_join(t, nullptr); on = false; delete fn; fn = nullptr; } }
+    ~KThread() { if (on) std::terminate(); }
+};
+#endif
 
 static inline int lsb(U64 b) { return __builtin_ctzll(b); }
 static inline int popc(U64 b) { return __builtin_popcountll(b); }
@@ -102,10 +138,19 @@ static inline U64 rookAttOld(int sq, U64 occ) {
     int rank = sq >> 3, file = sq & 7;
     return ((U64)RankAtt[file][(occ >> (rank * 8)) & 0xFF] << (rank * 8)) | slide(occ, sq, FileM[sq]);
 }
+#ifdef __BMI2__
+static inline U64 pext64(U64 v, U64 m) { return _pext_u64(v, m); }
+#else
+static inline U64 pext64(U64 v, U64 m) {            // 40.1: this build does not target BMI2; plain-C PEXT, never called (usePext stays false)
+    U64 r = 0; for (U64 b = 1; m; b += b) { U64 l = m & (0 - m); if (v & l) r |= b; m &= m - 1; }
+    return r;
+}
+#endif
 static bool usePext = false;
 static U64 rookTabP[102400], bishopTabP[5248], rookMaskP[64], bishopMaskP[64]; static int rookOffP[64], bishopOffP[64];
 static bool pextIsFast() {                    // PEXT is one cheap instruction on Intel and on AMD Zen 3+; Zen 1 / 2 (family 0x17) emulate it in microcode
     if (const char* e = getenv("CLAUDE_NO_PEXT")) if (e[0] == '1') return false;
+#if defined(__BMI2__) && (defined(__x86_64__) || defined(__i386__))
     if (const char* e = getenv("CLAUDE_FORCE_PEXT")) if (e[0] == '1') return true;
     unsigned a = 0, b = 0, c = 0, d = 0;
     if (!__get_cpuid(0, &a, &b, &c, &d)) return false;
@@ -113,6 +158,9 @@ static bool pextIsFast() {                    // PEXT is one cheap instruction o
     if (!__get_cpuid(1, &a, &b, &c, &d)) return false;
     unsigned fam = (a >> 8) & 0xF; if (fam == 0xF) fam += (a >> 20) & 0xFF;
     return intel || (amd && fam >= 0x19);
+#else
+    return false;                                    // 40.1: generic x86-64, ARM, ...: the shift-based attack tables
+#endif
 }
 static void initPext() {
     usePext = pextIsFast();
@@ -124,14 +172,14 @@ static void initPext() {
         U64 rm = (((0xFFULL << (r * 8)) & ~edgeF) | (FileBB[f] & ~edgeR)) & ~(1ULL << sq);
         U64 bm = (DiagM[sq] | AntiM[sq]) & ~(edgeF | edgeR);
         rookMaskP[sq] = rm; bishopMaskP[sq] = bm; rookOffP[sq] = ro; bishopOffP[sq] = bo;
-        U64 x = 0; do { rookTabP[ro + _pext_u64(x, rm)] = rookAttOld(sq, x); x = (x - rm) & rm; } while (x);
+        U64 x = 0; do { rookTabP[ro + pext64(x, rm)] = rookAttOld(sq, x); x = (x - rm) & rm; } while (x);
         ro += 1 << popc(rm);
-        x = 0; do { bishopTabP[bo + _pext_u64(x, bm)] = bishopAttOld(sq, x); x = (x - bm) & bm; } while (x);
+        x = 0; do { bishopTabP[bo + pext64(x, bm)] = bishopAttOld(sq, x); x = (x - bm) & bm; } while (x);
         bo += 1 << popc(bm);
     }
 }
-static inline U64 bishopAtt(int sq, U64 occ) { return usePext ? bishopTabP[bishopOffP[sq] + _pext_u64(occ, bishopMaskP[sq])] : bishopAttOld(sq, occ); }
-static inline U64 rookAtt(int sq, U64 occ) { return usePext ? rookTabP[rookOffP[sq] + _pext_u64(occ, rookMaskP[sq])] : rookAttOld(sq, occ); }
+static inline U64 bishopAtt(int sq, U64 occ) { return usePext ? bishopTabP[bishopOffP[sq] + pext64(occ, bishopMaskP[sq])] : bishopAttOld(sq, occ); }
+static inline U64 rookAtt(int sq, U64 occ) { return usePext ? rookTabP[rookOffP[sq] + pext64(occ, rookMaskP[sq])] : rookAttOld(sq, occ); }
 static inline U64 queenAtt(int sq, U64 occ) { return bishopAtt(sq, occ) | rookAtt(sq, occ); }
 
 // ---------------------------------------------------------------- neural network evaluation (NNUE-style)
@@ -777,7 +825,7 @@ void resizeTT(int mb) {
         catch (const std::exception&) { tt.reset(); if (mb <= 1) throw; mb /= 2; }
     }
 }
-static inline void ttPrefetch(U64 hash) { _mm_prefetch((const char*)&ttBase[(hash & ttMask) & ~(U64)3], _MM_HINT_T0); }
+static inline void ttPrefetch(U64 hash) { __builtin_prefetch((const char*)&ttBase[(hash & ttMask) & ~(U64)3], 0, 3); }
 static inline int toTT(int s, int ply) { return s >= MATE_BOUND ? s + ply : s <= -MATE_BOUND ? s - ply : s; }
 static inline int fromTT(int s, int ply) { return s >= MATE_BOUND ? s - ply : s <= -MATE_BOUND ? s + ply : s; }
 static inline int ttPriority(U64 d) {            // replacement priority of an entry: depth minus 8 per generation of age; an empty entry is the lowest
@@ -961,7 +1009,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -1511,7 +1565,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -2061,7 +2121,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -2611,7 +2677,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -3161,7 +3233,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -3711,7 +3789,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -4261,7 +4345,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -4811,7 +4901,13 @@ static int evalNN(const Pos& pos) {
     return (int)cp;
 }
 
+static inline bool knightPairVsBareKing(const Pos& p) {        // 40.1: K + N + N against K: no forced mate, a draw (but not a dead position: the search still finds a mate the opponent allows)
+    if (p.P[0] | p.P[6] | p.P[2] | p.P[8] | p.P[3] | p.P[9] | p.P[4] | p.P[10]) return false;
+    const int nw = popc(p.P[1]), nb = popc(p.P[7]);
+    return (nw == 2 && nb == 0) || (nw == 0 && nb == 2);
+}
 static int evaluateRaw(const Pos& pos) {
+    if (knightPairVsBareKing(pos)) return 0;
     if (nnueReady) {
         if (nnBlend <= 0) { int s0 = evalFast(pos); return pos.side == 0 ? s0 : -s0; }
         int nn = evalNN(pos);
@@ -5231,7 +5327,7 @@ static void clearAllTables() { S0::clearTables(); S1::clearTables(); S2::clearTa
 struct ExpRec { int w = 0, d = 0, l = 0; };
 unordered_map<U64, unordered_map<int, ExpRec>> expDB;
 bool useExp = true;
-string expPath = "kestrel_experience_v1.dat";
+string expPath = "kestrel_experience_v1_1.dat";
 #ifdef _WIN32
 // 37.1: file names are UTF-8 inside the engine; the wide-character API opens them (the ANSI code page cannot hold every folder name)
 static std::wstring winPath(const string& s) {
@@ -5486,11 +5582,11 @@ void think() {
         }
     }
     int stableIt = 0, ponderMv = 0;
-    std::thread helperTh[MAXTH]; const int nth = (multiPV > 1) ? 1 : max(1, min(MAXTH, numThreads));
-    struct HelperJoin { std::thread* h; int n; ~HelperJoin() { stopFlag = true; for (int k = 1; k < n; k++) if (h[k].joinable()) h[k].join(); } } helperJoin{helperTh, nth};
+    KThread helperTh[MAXTH]; const int nth = (multiPV > 1) ? 1 : max(1, min(MAXTH, numThreads));
+    struct HelperJoin { KThread* h; int n; ~HelperJoin() { stopFlag = true; for (int k = 1; k < n; k++) if (h[k].joinable()) h[k].join(); } } helperJoin{helperTh, nth};
     if (nth > 1) {
         gRoot = pos;
-        try { for (int k = 1; k < nth; k++) helperTh[k] = std::thread(helperFns[k], k); }
+        try { for (int k = 1; k < nth; k++) helperTh[k] = KThread(helperFns[k], k); }
         catch (const std::exception&) {}              // fewer threads than asked for
     }
     for (int d = 1; d <= maxDepthLimit; d++) {
@@ -5621,8 +5717,15 @@ int main(int argc, char** argv) {
 #ifdef _WIN32
       dir = exeDirUtf8();                                                 // 37.1: not argv[0] (ANSI code page, and no folder at all when started by a bare name)
 #endif
+#if defined(__linux__)
+      { char lb[4096]; ssize_t ln = readlink("/proc/self/exe", lb, sizeof lb - 1);           // 40.1: the real folder of the exe, also when started by a bare name through PATH
+        if (ln > 0) { lb[ln] = 0; string s(lb); size_t sl = s.find_last_of('/'); if (sl != string::npos) dir = s.substr(0, sl + 1); } }
+#elif defined(__APPLE__)
+      { uint32_t sz = 0; _NSGetExecutablePath(nullptr, &sz);
+        if (sz > 0 && sz < 65536) { vector<char> lb(sz + 1, 0); if (_NSGetExecutablePath(lb.data(), &sz) == 0) { string s(lb.data()); size_t sl = s.find_last_of('/'); if (sl != string::npos) dir = s.substr(0, sl + 1); } } }
+#endif
       if (dir.empty()) { string a0 = argc > 0 && argv[0] ? argv[0] : ""; size_t sl = a0.find_last_of("\\/"); dir = sl == string::npos ? string() : a0.substr(0, sl + 1); }
-      expPath = dir + "kestrel_experience_v1.dat"; loadExp();
+      expPath = dir + "kestrel_experience_v1_1.dat"; loadExp();
       bookPath = dir + "claude_book.txt"; loadBook(); rngState ^= (U64)chrono::steady_clock::now().time_since_epoch().count(); }
     for (int d = 1; d < 64; d++) for (int m = 1; m < 64; m++) lmrT[d][m] = (int)(0.8 + log((double)d) * log((double)m) / 2.2);
     pos.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
@@ -5734,13 +5837,13 @@ int main(int argc, char** argv) {
         for (int i = 0; i < NF; i++) fprintf(o, "%d%s", Weg[i], i + 1 < NF ? "," : "");
         fprintf(o, "};\n"); fclose(o); return 0;
     }
-    thread worker;
+    KThread worker;
     string line;
     while (getline(cin, line)) {
         istringstream is(line); string cmd; is >> cmd;
         try {
         if (cmd == "uci") {
-            printf("id name Kestrel 1.0\nid author Claude\noption name Hash type spin default 64 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name NNBlend type spin default 70 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name OwnBook type check default true\noption name Net2Share type spin default 70 min 0 max 100\noption name UseNet2 type check default true\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\noption name CorrFlags type spin default 2 min 0 max 2\noption name Move Overhead type spin default 5 min 0 max 5000\noption name EvalCache type spin default 1 min 0 max 1\noption name V31Flags type spin default 0 min 0 max 255\noption name V31HistPrune type spin default 2500 min 0 max 20000\noption name V31CutR type spin default 1 min 0 max 3\noption name V31DE type spin default 20 min 0 max 200\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default true\noption name ExperienceFile type string default kestrel_experience_v1.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\nuciok\n"); fflush(stdout);
+            printf("id name Kestrel 1.1\nid author Claude\noption name Hash type spin default 64 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name NNBlend type spin default 70 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name OwnBook type check default true\noption name Net2Share type spin default 70 min 0 max 100\noption name UseNet2 type check default true\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\noption name CorrFlags type spin default 2 min 0 max 2\noption name Move Overhead type spin default 5 min 0 max 5000\noption name EvalCache type spin default 1 min 0 max 1\noption name V31Flags type spin default 0 min 0 max 255\noption name V31HistPrune type spin default 2500 min 0 max 20000\noption name V31CutR type spin default 1 min 0 max 3\noption name V31DE type spin default 20 min 0 max 200\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default true\noption name ExperienceFile type string default kestrel_experience_v1_1.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\nuciok\n"); fflush(stdout);
         } else if (cmd == "isready") { printf("readyok\n"); fflush(stdout); }
         else if (cmd == "ucinewgame") {
             { stopFlag = true; goInfinite = false; if (worker.joinable()) worker.join(); }
@@ -5810,7 +5913,7 @@ int main(int argc, char** argv) {
             int pn = 0; { istringstream is3(line); string t3; while (is3 >> t3) if (t3 == "perft") is3 >> pn; }
             pn = max(1, min(pn, 30));
             stopFlag = false; goInfinite = false; pondering = false;
-            try { worker = thread(perftWorker, pn); } catch (const std::exception&) { stopFlag = true; }
+            try { worker = KThread(perftWorker, pn); } catch (const std::exception&) { stopFlag = true; }
         } else if (cmd == "go") {
             { stopFlag = true; goInfinite = false; if (worker.joinable()) worker.join(); }
             long long wt = 0, bt = 0, wi = 0, bi = 0, mt = 0, mtg = 0; int depth = 0; long long nl = 0; bool inf = false, ponderGo = false;
@@ -5850,7 +5953,7 @@ int main(int argc, char** argv) {
             if (ponderGo) { pendSoft = softMs; pendHard = hardMs; softMs = hardMs = 0; pondering = true; inf = true; } else pondering = false;
             t0 = chrono::steady_clock::now();
             stopFlag = false; goInfinite = inf;
-            try { worker = thread(thinkSafe); }
+            try { worker = KThread(thinkSafe); }
             catch (const std::exception&) { stopFlag = true; fallbackBestmove(); }
         } else if (cmd == "ponderhit") {
             if (pondering) { softMs = pendSoft; hardMs = pendHard; t0 = chrono::steady_clock::now(); pondering = false; goInfinite = false; }

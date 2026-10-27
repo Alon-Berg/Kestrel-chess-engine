@@ -1,0 +1,29 @@
+PASS GCC build   0 warnings
+PASS clang ASan+UBSan build
+PASS acctest (hash/PST/net accumulators)   acctest: checked 185934 positions, mismatches 0
+PASS perft suite   6/6 OK
+PASS perft vs python-chess (depth 3)   positions 2600 depth 3 mismatches 0
+PASS evaluation mirror symmetry   positions 1500 | max |eval - mirrored eval| = 0 | above 12 cp: 0 | mean diff 0.00
+PASS PV legality / mate consistency   positions 250 | info lines checked 2329 | mate lines 371 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS UCI fuzzer seed 1   sequences 400 | failures 0
+PASS UCI fuzzer seed 2   sequences 400 | failures 0
+PASS go infinite + immediate stop   runs 20 hung (no bestmove within 5 s): 0
+PASS go infinite waits for stop   bestmove printed BEFORE stop: False | after stop: ['bestmove d1d8']
+PASS UCI features (MultiPV, ponder, Clear Hash, limit strength, threads)   13 checks, 0 failed
+PASS ASan/UBSan acctest   acctest: checked 185934 positions, mismatches 0
+PASS ASan/UBSan perft suite   6/6 OK
+PASS ASan/UBSan bench   bench: nodes 439247 time 3206 ms nps 137007
+PASS ASan/UBSan UCI fuzzer   sequences 400 | failures 0
+PASS ASan/UBSan PV check   positions 100 | info lines checked 871 | mate lines 137 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS GCC build, 4 threads by default   0 warnings
+PASS clang ASan+UBSan build, 4 threads by default
+PASS 4 threads: PV legality / mate consistency   positions 200 | info lines checked 1868 | mate lines 272 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS 4 threads: UCI fuzzer   sequences 400 | failures 0
+PASS 4 threads: go infinite + immediate stop   runs 20 hung (no bestmove within 5 s): 0
+PASS 4 threads: go infinite waits for stop   bestmove printed BEFORE stop: False | after stop: ['bestmove d1d8']
+PASS 4 threads: bench completes   bench: nodes 243543 time 137 ms nps 1777686
+PASS 4 threads ASan/UBSan: bench   bench: nodes 361951 time 1810 ms nps 199972
+PASS 4 threads ASan/UBSan: UCI fuzzer   sequences 300 | failures 0
+PASS 4 threads ASan/UBSan: PV check   positions 80 | info lines checked 694 | mate lines 106 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+
+v41: 27 checks, 0 failed, 601 s

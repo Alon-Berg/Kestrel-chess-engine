@@ -1,7 +1,7 @@
 #include <windows.h>
 VS_VERSION_INFO VERSIONINFO
-FILEVERSION 1,0,0,0
-PRODUCTVERSION 1,0,0,0
+FILEVERSION 1,1,0,0
+PRODUCTVERSION 1,1,0,0
 FILEFLAGSMASK 0x3fL
 FILEFLAGS 0x0L
 FILEOS VOS_NT_WINDOWS32
@@ -13,12 +13,12 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "Kestrel authors"
       VALUE "FileDescription", "Kestrel UCI chess engine"
-      VALUE "FileVersion", "1.0.0.0"
+      VALUE "FileVersion", "1.1.0.0"
       VALUE "InternalName", "kestrel"
       VALUE "LegalCopyright", "MIT License"
       VALUE "OriginalFilename", "kestrel.exe"
       VALUE "ProductName", "Kestrel"
-      VALUE "ProductVersion", "1.0"
+      VALUE "ProductVersion", "1.1"
     END
   END
   BLOCK "VarFileInfo"

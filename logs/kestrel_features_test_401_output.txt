@@ -1,0 +1,22 @@
+PASS KNN v K evaluates 0: white KNN v K   ('cp', 0)
+PASS KNN v K evaluates 0: black knights, black to move   ('cp', 0)
+PASS KNN v K evaluates 0: black KNN v K, white to move   ('cp', 0)
+PASS KNN v K evaluates 0: black KNN v K, black to move   ('cp', 0)
+PASS KNN + pawn v K is not scored 0   ('cp', 643)
+PASS KN v K still 0 (dead position)   ('cp', 0)
+PASS K+N+N v K: a mate in 1 is still found (e5c4)   (('mate', 1), 'bestmove e5c4')
+PASS K+N+N v K near a corner: search finds the forced line or scores 0, never a bogus large score   ('mate', 1)
+PASS id name Kestrel 1.1 and kestrel_experience_v1_1.dat   ['id name Kestrel 1.1']
+PASS builds unpatched, no warnings: generic
+PASS builds unpatched, no warnings: v2
+PASS builds unpatched, no warnings: v3
+PASS builds unpatched, no warnings: kthread
+PASS bench depth 12 equals the tested exe (generic): 439247
+PASS bench depth 12 equals the tested exe (v2): 439247
+PASS bench depth 12 equals the tested exe (v3): 439247
+PASS bench depth 12 equals the tested exe (kthread): 439247
+PASS CLAUDE_FORCE_PEXT=1 does not break a build without BMI2
+PASS KThread (8 MB stacks, 128 KB main stack), 1 thread(s): deep searches, stop, MultiPV
+PASS KThread (8 MB stacks, 128 KB main stack), 4 thread(s): deep searches, stop, MultiPV
+
+20 checks, 0 failed

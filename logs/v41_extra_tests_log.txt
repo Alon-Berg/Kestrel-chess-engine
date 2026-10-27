@@ -1,0 +1,235 @@
+=== odd_fen_test
+   bestmove e8e7      
+4k3/8/8/8/8/8/8/4K3 w - a1 0 1                             bestmove e1d1      
+rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1   bestmove e2e4      
+4k3/P7/8/8/8/8/8/4K3 w - - 0 1                             bestmove a7a8q     
+4k3/8/8/8/8/8/p7/4K3 b - - 0 1                             bestmove a2a1q     
+8/8/8/8/8/8/8/4K2k w - - 0 1                               bestmove e1d1      
+k7/8/8/8/8/8/8/K7 w - - 99 120                             bestmove a1b1      
+k7/8/8/8/8/8/8/K7 w - - 0 0                                bestmove a1b1      
+r3k2r/8/8/8/8/8/8/R3K2R w KQkq z9 0 1                      bestmove a1a8       (python-chess cannot read it)
+r3k2r/8/8/8/8/8/8/R3K2R w KQkq e9 0 1                      bestmove a1a8       (python-chess cannot read it)
+r3k2r/8/8/8/8/8/8/R3K2R w KQkq - -5 -3                     bestmove a1a8       (python-chess cannot read it)
+r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 100000 1                  bestmove a1a8      
+4k3/8/8/8/8/8/8/4K3 w KQkq                                 bestmove e1d1      
+4k3/8/8/8/8/8/8/4K3 w                                      bestmove e1d1      
+4k3/8/8/8/8/8/8/4K3                                        bestmove e1d1      
+r3k2r/8/8/4pP2/8/8/8/R3K2R w KQkq e6 0 1                   bestmove a1a8      
+r3k2r/8/8/8/4Pp2/8/8/R3K2R b KQkq e3 0 1                   bestmove a8a1      
+r3k2r/8/8/8/8/8/8/R3K2R w KQkq e3 0 1                      bestmove a1a8      
+rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e6 0 2 bestmove b1c3      
+rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 bestmove c7c5      
+4k3/8/8/8/8/8/8/R3K2R w Kk - 0 1                           bestmove a1a7      
+r3k2r/8/8/8/8/8/8/4K2R w KQkq - 0 1                        bestmove h1h8      
+positions 31, problems 0
+
+=== fen_fuzz
+positions tested 300 (engine refused 2 as impossible), problems 0
+
+=== test_v301 (kestrel_test_v301.py)
+PASS go infinite at the start position with the book on waits for stop   early bestmove=False info lines=True
+PASS go ponder with the book on waits for stop/ponderhit
+PASS MultiPV analysis with the book on produces info lines   multipv-2 lines 8
+PASS bare 'go' searches until stop   early bestmove=False
+PASS a won game writes experience records   1 record(s)
+PASS experience records after damaged lines are still used
+PASS search after ucinewgame equals the search of a fresh engine (table really empty)   ('90519', 'bestmove b8c6') / ('90519', 'bestmove b8c6')
+   ucinewgame at Hash 1024: untouched table 0.006 s, after a search 0.092 s
+PASS ucinewgame on an untouched table is instant   0.006 s
+PASS engine still plays after the table size changed
+PASS engine works with no book file next to it
+PASS engine survives a damaged book and experience file
+   worst overshoot of the clock with 4..20 ms left: 2.8 ms
+PASS with 4-20 ms on the clock the engine answers within the clock (+ ~10 ms process latency)   2.8 ms
+
+12 checks, 0 failed
+
+=== shared_exp_test
+records written: 320 of 320 expected | malformed lines: 0
+
+=== soak_test
+after   750 searches: working set 99 MB, handles 148, threads 2
+after  1500 searches: working set 99 MB, handles 148, threads 2
+after  2250 searches: working set 99 MB, handles 148, threads 2
+after  3000 searches: working set 99 MB, handles 148, threads 2
+memory flat (+15%): True | handles flat: True | threads flat: True
+
+=== clock_limit_test
+PASS clock + depth limit: answers quickly   0.01s, depth 5
+PASS clock + node limit: answers quickly   0.01s, depth 5
+PASS 2 s clock + depth 40: stops on the clock (< 1 s)   0.06s, depth 10
+PASS big clock + depth 7: depth limit ends the search   0.01s, depth 7
+PASS depth limit without a clock: unchanged   0.01s, depth 7
+PASS zero clock + depth 6: depth limit (no clock budget)   0.01s, depth 6
+PASS node limit without a clock: unchanged   0.03s, nodes 29724 (v36 gives the same count)
+PASS movetime + depth 40: movetime wins   0.18s, depth 13
+PASS clock alone: unchanged (about 3000/28 ms)   0.10s, depth 12
+clock_limit_test: 9 checks, 0 failed
+
+=== features_test 36.2
+n the list: the later move g1f3 is NOT applied   bestmove b1c3 (white to move expected)
+PASS unparsable first move: position stays the start position   bestmove g1f3
+PASS legal move lists are applied as before   bestmove b8c6 (black to move)
+PASS searchmoves with one move plays it   a2a3
+PASS searchmoves with two moves plays one of them   e2e4
+PASS garbage tokens in the list are ignored   a2a3
+PASS a list without any legal move is dropped (unrestricted search)   e2e4 vs e2e4
+PASS an illegal-for-this-side move list is dropped   e2e4 vs e2e4
+PASS searchmoves + movetime   e2e4 0.18s
+PASS the restriction does not leak into the next go   e2e4 vs e2e4
+PASS kiwipete: searchmoves a1b1   a1b1
+PASS kiwipete: one of three listed moves   e2a6
+PASS MultiPV 3 + searchmoves: every line starts with a listed move   ['d5e6', 'e2a6', 'g2h3']
+PASS go mate 1 finds the mate in one (7k/5Q2/6K1/8/8/8/8...)   f7g7 in 0.01s
+PASS go mate 1 finds the mate in one (r1bqkbnr/pppp1ppp/...)   h5f7 in 0.01s
+PASS go mate 1 finds the mate in one (rnbqkbnr/pppp1ppp/...)   d8h4 in 0.01s
+PASS test positions with a forced mate in two were generated   6
+PASS go mate 2 plays a move that forces mate in two (8/8/8/8/4R3/7K/8/5k2)   h3g3 in 0.01s
+PASS go mate 2 plays a move that forces mate in two (8/4RK2/7k/8/8/8/8/8)   e7e5 in 0.01s
+PASS go mate 2 plays a move that forces mate in two (8/8/8/8/3R4/7k/8/4K3)   e1f2 in 0.01s
+PASS go mate 2 plays a move that forces mate in two (8/8/8/8/2R5/6K1/8/5k2)   c4e4 in 0.01s
+PASS go mate 2 plays a move that forces mate in two (8/4Q3/5K2/7k/8/8/8/8)   e7e4 in 0.01s
+PASS go mate 2 plays a move that forces mate in two (8/8/8/8/1R6/3K4/8/2k5)   b4b3 in 0.01s
+PASS go mate 1 where only a mate in two exists: still answers (no hang)   h3g3 in 0.01s
+features_test: 31 checks, 0 failed
+
+=== features_test 36.3
+PASS setoption name OWNBOOK value True switches the book on   book move line present: True (without it: False)
+PASS setoption name ownbook value FALSE switches it off again
+PASS Ponder value True: bestmove carries a ponder move   bestmove d5e6 ponder a6e2
+PASS name multipv: three lines are reported
+PASS uci_limitstrength True + uci_elo 1500 limit the search   max nodes 1679
+PASS lower-case Hash / Clear Hash / Move Overhead are accepted and the engine plays on
+PASS KBB, both bishops on light squares (b1 d1) vs K   score 0
+PASS KBB, both on dark squares (a1 c1) vs K   score 0
+PASS KBB vs KB, all three on dark squares   score 0
+PASS KBB with bishops on opposite colours (c1 d1): a real win   score 462
+PASS KBB + pawn: not a dead position   score 615
+PASS go perft 1 at startpos depth 1: 20 nodes, per-move lines add up   total 20, 20 root moves
+PASS go perft 4 at startpos depth 4: 197281 nodes, per-move lines add up   total 197281, 20 root moves
+PASS go perft 3 at kiwipete depth 3: 97862 nodes, per-move lines add up   total 97862, 48 root moves
+PASS stop ends a very deep perft at once   0.01s
+PASS the engine searches normally after a perft
+PASS quit ends a very deep perft at once   0.01s
+features_test (36.3): 17 checks, 0 failed
+
+=== features_test 36.5
+PASS UCI_ShowWDL off by default: no wdl in the info lines
+PASS UCI_ShowWDL on (spelled 'uci_showwdl value True'): every info line has wdl W D L adding up to 1000   8 lines
+PASS equal-ish position: the draw share is the largest, win and loss are close   wdl 271 588 141
+PASS mate score: wdl 1000 0 0   info depth 6 score mate 1 wdl 1000 0 0 nodes 33 nps 33 hashfull 1 time
+PASS book is used at the start position by default
+PASS UCI_AnalyseMode true: no book move, a real search
+PASS UCI_AnalyseMode false again: book move comes back
+PASS hashfull is reported and grows while searching   last values [4, 17, 30, 48]
+PASS Clear Hash empties the table (hashfull restarts near 0)   [0, 0, 0]
+PASS tiny tables (1, 2 MB) still search normally and give a legal move   ['e2a6', 'e2a6', 'e2a6']
+PASS a 1 MB table survives 8 deep searches in a row (heavy replacement)
+features_test (36.5): 11 checks, 0 failed
+
+=== chess960_test
+PASS legal moves equal python-chess in 2368 Chess960 positions (120 castling moves among them)   []
+PASS perft totals equal python-chess for 40 Chess960 start positions (depth 3, six at depth 4)
+PASS normal start position played as Chess960 (king-takes-rook notation, castling e1h1 possible): perft 3   30542
+PASS the engine's own moves are legal in 6 short Chess960 games (castling moves played: 9)
+PASS standard chess (UCI_Chess960 off): legal moves equal python-chess in 2365 positions; castling e1g1 e1c1 e8g8 e8c8 all seen (37 castling moves)   ['e1c1', 'e1g1', 'e8c8', 'e8g8']
+chess960_test: 5 checks, 0 failed
+
+=== rep_unit_test
+PASS S1: back to a position seen once before the root (ply 3): NOT a draw yet (36.4 called it one)
+PASS S1: the start position for the THIRD time (twice before the root): draw
+PASS S2: the search returns to the ROOT position (ply 4): not a draw (needs a second repetition)
+PASS S2: a repetition strictly inside the search tree (ply 8 = ply 4): draw
+PASS S3: back to the root position (ply 5 = ply 1): not a draw
+PASS S3: ply 6 repeats ply 2, which is inside the search: draw
+PASS S4: ordinary position: no draw
+PASS S4: halfmove clock 100: draw
+PASS S5: K + two same-coloured bishops vs K: draw
+rep_unit_test: 9 checks, 0 failed
+
+=== features_test 37.1 (kestrel_features_test_371.py)
+ to the exe'   "['kestrel_experience_v1_1.dat']"
+PASS 'folder \u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u043a\u0430\u0442\u0430\u043b\u043e\u0433: ExperienceFile option with a Unicode file name is written'
+PASS 'folder emoji \U0001f600 dir: opening book found'
+PASS 'folder emoji \U0001f600 dir: experience file written next to the exe'   "['kestrel_experience_v1_1.dat']"
+PASS 'folder emoji \U0001f600 dir: ExperienceFile option with a Unicode file name is written'
+PASS 'folder a&b (c) [d] %PATH% !x: opening book found'
+PASS 'folder a&b (c) [d] %PATH% !x: experience file written next to the exe'   "['kestrel_experience_v1_1.dat']"
+PASS 'folder a&b (c) [d] %PATH% !x: ExperienceFile option with a Unicode file name is written'
+PASS 'started by a bare name through PATH: opening book found'
+PASS 'started by a bare name through PATH: experience written next to the exe, nothing in the working directory'   "['kestrel_experience_v1_1.dat'] | []"
+PASS 'started by a relative path: opening book found'
+PASS 'go movetime 30: the time is used (50% - 100% of T) and never exceeded by more than 8 ms'   'min 25 median 26 max 26 ms'
+PASS 'go movetime 100: the time is used (62% - 100% of T) and never exceeded by more than 8 ms'   'min 77 median 77 max 77 ms'
+PASS 'go movetime 300: the time is used (82% - 100% of T) and never exceeded by more than 8 ms'   'min 271 median 273 max 274 ms'
+PASS 'go movetime 1000: the time is used (90% - 100% of T) and never exceeded by more than 8 ms'   'min 971 median 972 max 974 ms'
+PASS 'go movetime 1000 with one legal move: answers at once'   'h1g2 after 3 ms'
+PASS 'go movetime 1000 with a mate in one: the mate is found and the move is legal'   'info depth 8 score mate 1 nodes 37 nps 37 hashfull 0 time 0  after 3 ms'
+features_test (37.1): 27 checks, 0 failed
+
+=== features_test 38.1
+PASS 'go depth 7' from the start position with the book ON: a real search (score + pv), no book move   ['bestmove e2e4']
+PASS 'go nodes 20000' from the start position with the book ON: a real search (score + pv), no book move   ['bestmove e2e4']
+PASS 'go depth 7 searchmoves e2e4 d2d4' from the start position with the book ON: a real search (score + pv), no book move   ['bestmove e2e4']
+PASS 'go mate 3' from the start position with the book ON: searches until stopped (score + pv), no book move   ['bestmove e2e4']
+PASS 'go wtime 5000 btime 5000' from the start position with the book ON: the book is still used   3 of 3
+PASS 'go wtime 5000 btime 5000 winc 100 binc 100' from the start position with the book ON: the book is still used   3 of 3
+PASS 'go movetime 300' from the start position with the book ON: the book is still used   3 of 3
+PASS 'go depth 8 wtime 5000 btime 5000' from the start position with the book ON: the book is still used   3 of 3
+PASS go depth / nodes searches on a won position leave no experience records   no file
+PASS a game search with a clock on a won position still records experience   24
+PASS with a stored winning move: 'go depth 8' searches, a game search replays it   analysis searched: True, game replayed: True
+PASS Move Overhead 5 (default): go movetime 1000 uses 90-100 %   972 ms
+PASS Move Overhead 400: go movetime 1000 ends 400 ms earlier   603 ms
+PASS Move Overhead 5000 (the maximum): go movetime 1000 still uses about half   501 ms
+PASS Move Overhead 5: go movetime 100 unchanged (about 76 ms)   77 ms
+PASS Move Overhead 5000: go movetime 100 still answers (about half)   52 ms
+features_test (38.1): 16 checks, 0 failed
+
+=== interop_test (kestrel_interop_test.py)
+PASS popen_uci: id name / author   {'name': 'Kestrel 1.1', 'author': 'Claude'}
+PASS all 27 declared options accept default / min / max values   []
+PASS play() with limit time 0.1 s on 4 positions   0.23 s
+PASS play() with limit nodes 3000 on 4 positions   0.02 s
+PASS play() with limit depth 5 on 4 positions   0.00 s
+PASS play() with limit clocks 2+0.1 on 4 positions   0.35 s
+PASS play() with limit clocks + 20 moves to go on 4 positions   0.56 s
+PASS play() with Limit(mate=1): the mate move, with a mate score   a1a8
+PASS analyse(depth 8) of the start position with the book ON returns a score and a legal PV   {'score': PovScore(Cp(+14), WHITE), 'depth': 8}
+PASS analyse(nodes 20000) of the start position with the book ON returns a score and a legal PV   {'score': PovScore(Cp(+28), WHITE), 'depth': 10}
+PASS analyse(depth 8) of the after 1.e4 with the book ON returns a score and a legal PV   {'score': PovScore(Cp(-29), BLACK), 'depth': 8}
+PASS analyse(nodes 20000) of the after 1.e4 with the book ON returns a score and a legal PV   {'score': PovScore(Cp(-27), BLACK), 'depth': 10}
+PASS analyse(multipv=3): 3 lines, distinct first moves, legal PVs   ['PovScore(Cp(+142), WHITE)', 'PovScore(Cp(+141), WHITE)', 'PovScore(Cp(+141), WHITE)']
+PASS analysis(): infinite search streams info with score, stops on request
+PASS Move Overhead 400 shortens a 1 s move time (0.97 s -> 0.60 s)   0.97 / 0.60
+PASS play(ponder=True) over 6 turns, ponder hits and misses: all moves legal
+PASS Chess960: 14 plies from a Chess960 start position, all moves legal
+PASS new-game handling (ucinewgame between games)
+interop_test: 18 checks, 0 failed
+
+=== edge_test
+cases 303 | problems 0 | 108s
+
+=== features_test 40.1 (kestrel_features_test_401.py)
+PASS KNN v K evaluates 0: white KNN v K   ('cp', 0)
+PASS KNN v K evaluates 0: black knights, black to move   ('cp', 0)
+PASS KNN v K evaluates 0: black KNN v K, white to move   ('cp', 0)
+PASS KNN v K evaluates 0: black KNN v K, black to move   ('cp', 0)
+PASS KNN + pawn v K is not scored 0   ('cp', 643)
+PASS KN v K still 0 (dead position)   ('cp', 0)
+PASS K+N+N v K: a mate in 1 is still found (e5c4)   (('mate', 1), 'bestmove e5c4')
+PASS K+N+N v K near a corner: search finds the forced line or scores 0, never a bogus large score   ('mate', 1)
+PASS id name Kestrel 1.1 and kestrel_experience_v1_1.dat   ['id name Kestrel 1.1']
+PASS builds unpatched, no warnings: generic
+PASS builds unpatched, no warnings: v2
+PASS builds unpatched, no warnings: v3
+PASS builds unpatched, no warnings: kthread
+PASS bench depth 12 equals the tested exe (generic): 439247
+PASS bench depth 12 equals the tested exe (v2): 439247
+PASS bench depth 12 equals the tested exe (v3): 439247
+PASS bench depth 12 equals the tested exe (kthread): 439247
+PASS CLAUDE_FORCE_PEXT=1 does not break a build without BMI2
+PASS KThread (8 MB stacks, 128 KB main stack), 1 thread(s): deep searches, stop, MultiPV
+PASS KThread (8 MB stacks, 128 KB main stack), 4 thread(s): deep searches, stop, MultiPV
+
+20 checks, 0 failed

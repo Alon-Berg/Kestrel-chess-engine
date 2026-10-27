@@ -1,7 +1,7 @@
 # Kestrel
 
 Kestrel is a UCI chess engine written in a single C++17 file (bitboards, alpha-beta search) with two embedded neural networks (king-bucketed inputs) blended with a hand-written evaluation.
-This is **Kestrel 1.0** (development version 40.0), the first release under the name Kestrel; the engine was called *Claude* up to version 39
+This is **Kestrel 1.1** (development version 40.1), a bug-fix release on **Kestrel 1.0** (40.0), the first release under the name Kestrel; the engine was called *Claude* up to version 39
 (the comment at the top of the source and the book file name still say Claude: the code is identical to Claude 39 apart from the engine name and the experience-file name).
 
 * bucketed transposition table, multi-threaded search (up to 8 threads)
@@ -13,7 +13,7 @@ This is **Kestrel 1.0** (development version 40.0), the first release under the 
 
 ```
 cd src
-g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel_final.exe kestrel_1_0.cpp
+g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel_final.exe kestrel_1_1.cpp
 ```
 
 `net_weights.h` and `net_weights2.h` are read by the compiler (they are `#include`d), so keep them next to the source. Put `claude_book.txt` next to the exe to use the book
@@ -21,7 +21,18 @@ g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel_final.e
 Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: see [docs/BUILDING.md](docs/BUILDING.md). Prebuilt binaries for Windows, Linux and macOS are published on the repository's Releases page (with their SHA-256);
 the Windows x86-64-v3 build is the one that went through the full test suite, the Linux and macOS builds have been compiled but not run (no such machine was available).
 
-## Measured strength (relative to Claude 39, the previous release)
+## Kestrel 1.1: what changed
+
+Bug fixes only. The networks, the book and the search are unchanged (bench depth 12: 439,247 nodes; 797 of 800 fixed-node test searches give exactly the result of 1.0, the other three are K+N+N against K endings).
+
+* K+N+N against a bare king was evaluated as winning (about +3.4 pawns) although there is no forced mate; now 0 (the search still finds a mate the opponent allows).
+* Linux (musl) and macOS: search threads get 8 MB stacks (the default 128 KB / 512 KB is too small for a deep search).
+* Linux and macOS: the book and the experience file are found next to the real executable also when it is started by name through PATH or through a symlink.
+* The source builds for every CPU target without a patch (generic x86-64, v2, v3, ARM64); see [docs/BUILDING.md](docs/BUILDING.md).
+
+Found by 83 black-box UCI cases and 31 rules / protocol checks (`tests/audit_probe.py`, `tests/audit_sem.py`, logs in `logs/`) and by porting the source to Linux, macOS and ARM.
+
+## Measured strength of Kestrel 1.0 (relative to Claude 39; 1.1 has the same networks and search)
 
 ```
 MEASURED - Kestrel 1.0 against Claude 39 (fastchess, 1 thread, Experience and OwnBook off; raw lines tests/v40_vs_39_raw.txt, tests/v40e_status.txt)

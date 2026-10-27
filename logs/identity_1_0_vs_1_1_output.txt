@@ -1,0 +1,7 @@
+searches compared: 800 | identical: 797 | different: 3
+  A: ('8/8/8/5k2/2nn4/8/8/4K3 w - - 2 61', 'nodes 60000', 'info depth 13 score cp -355 nodes 41020 hashfull 9 pv e1f2 f5f4 f2e1 f4e3 e1d1 c4d6 d1c1 d6b5 c1d1 b5c7 d1e1 c7e8 e1f1', 'bestmove e1f2') 
+  B: ('8/8/8/5k2/2nn4/8/8/4K3 w - - 2 61', 'nodes 60000', 'info depth 17 score cp 0 nodes 50600 hashfull 14 pv e1d1 c4b2 d1c1 b2d3 c1b1 d3e1 b1a1 e1c2 a1b1 c2e1', 'bestmove e1d1')
+  A: ('8/8/8/5k2/2nn4/8/8/4K3 w - - 2 61', 'depth 9', 'info depth 9 score cp -352 nodes 8962 hashfull 2 pv e1f1 f5g5 f1e1 g5f4 e1f2 d4f5 f2e2 c4b6 e2d2', 'bestmove e1f1') 
+  B: ('8/8/8/5k2/2nn4/8/8/4K3 w - - 2 61', 'depth 9', 'info depth 9 score cp 0 nodes 2283 hashfull 0 pv e1d1 c4b2 d1c1 b2d3 c1b1 d3e1 b1a1 e1c2 a1b1 c2e1', 'bestmove e1d1')
+  A: ('3N1k2/2K5/4P3/6p1/3N4/5Pn1/8/8 b - - 1 54', 'nodes 60000', 'info depth 13 score cp -687 nodes 44342 hashfull 10 pv g3h5 d8f7 f8e7 f7g5 h5f4 d4c6 e7f6 c7d7 f4e6 g5e6 f6g6 d7e7 g6h5 e6f4 h5g5 f4g2', 'bestmove g3h5') 
+  B: ('3N1k2/2K5/4P3/6p1/3N4/5Pn1/8/8 b - - 1 54', 'nodes 60000', 'info depth 13 score cp -670 nodes 53365 hashfull 11 pv g3h5 d8f7 f8e7 f7g5 e7f6 g5h3 f6e5 e6e7 h5f6 d4c6 e5e6 c7d8 e6d5 c6a5 d5d4 e7e8q f6e8 d8e8 d4c3 f3f4', 'bestmove g3h5')
