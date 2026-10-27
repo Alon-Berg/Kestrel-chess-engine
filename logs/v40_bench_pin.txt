@@ -1,0 +1,2 @@
+v40.exe                      nodes   1234988  n= 7  nps median   1500592  best   1511613  min   1267954  spread(max-min)/med 16.2%  vs first  +0.0 %
+claude_final.exe             nodes   1110401  n= 7  nps median   1480534  best   1527374  min   1364128  spread(max-min)/med 11.0%  vs first  -1.3 %

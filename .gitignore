@@ -1,0 +1,5 @@
+*.exe
+*.o
+*.dat
+kestrel_experience*
+build/

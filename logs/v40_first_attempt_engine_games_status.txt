@@ -1,0 +1,24 @@
+10-24 22:05  v40 run started
+10-24 22:05  stage 1: collect the tournament games
+10-24 22:05    20388 unique games from 4376 files kept; dropped {'duplicate': 6452, 'abnormal': 364, 'other time control': 0}
+10-24 22:05  stage 2: extract quiet positions (keep 0.6, thinning of decided positions as for self-play)
+10-24 22:05    extracted 968316 positions
+10-24 22:05  stage 3: remove positions that are already in the training set (positions_v39b.txt)
+10-24 22:05    461852 positions new to the training set, 506464 already in it
+10-24 22:05  stage 4: Stockfish depth 7 labels for 461852 positions
+10-24 22:06  restart: first extraction (keep 0.6) gave only 461,852 new positions (506,464 of 968,316 already in the training set); keep 1.0 instead
+10-24 22:06  v40 run started
+10-24 22:06  stage 2: extract quiet positions (keep 1.0 = every quiet position, thinning of decided positions as for self-play)
+10-24 22:07    extracted 1581522 positions
+10-24 22:07  stage 3: remove positions that are already in the training set (positions_v39b.txt)
+10-24 22:07    760043 positions new to the training set, 821479 already in it
+10-24 22:07  stage 4: Stockfish depth 7 labels for 760043 positions
+10-24 22:18  stage 5: positions_v40 + features + HCE scores
+10-24 22:19  positions_v40.txt: 15916735 positions
+10-24 22:19  stage 6: training both nets (warm start from the v39 nets, 10 / 8 epochs, lr 1e-3)
+10-25 07:22  stage 6 done: test loss full 0.016817 residual 0.016579 (the v39 nets reached 0.016807 / 0.016578 on a different split of a smaller set)
+10-25 07:22  stage 7: build the candidate (code of 39, version 40.0 = Kestrel 1.0, new nets)
+10-25 07:22  stage 8: A/B against final_v39/claude_final.exe at 20,000 nodes (3,200 games)
+10-25 07:43    20k nodes: -0.9 +/- 7.6 Elo (3200 games, W 995 L 1003 D 1202)
+10-25 07:43  RESULT: REJECTED | 20k nodes: -0.9 +/- 7.6 over 3200 games -> REJECTED
+10-25 07:43  v40 run finished

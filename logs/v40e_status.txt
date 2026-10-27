@@ -1,0 +1,20 @@
+10-26 22:03  v40e run started
+10-26 22:03  stage 1: checks
+10-26 22:03  stage 2: self-play with final_v39/claude_final.exe: 12000 games in 3 chunks (10,000 nodes; 6000 normal pool-D openings + 6000 gambit openings)
+10-26 22:15    chunk 1 done (4000 games)
+10-26 22:27    chunk 2 done (4000 games)
+10-26 22:39    chunk 3 done (4000 games)
+10-26 22:39    self-play finished: 12000 games in 3 files
+10-26 22:39  stage 3: extract positions
+10-26 22:39  stage 4: Stockfish depth 8 labels for 420420 positions
+10-26 22:48  stage 5: positions_v40e + features + HCE scores
+10-26 22:49  positions_v40e.txt: 17823449 positions
+10-26 22:49  stage 6: training both nets (warm start from the r40y nets, 4 / 3 epochs, lr 5e-4)
+10-27 00:46  stage 6 done: test loss full 0.016308 residual 0.016156 (r40y nets: 0.016697 / 0.016409 on a different split)
+10-27 00:46  stage 7: build the candidate (code of 39, version 40.0 = Kestrel 1.0, new nets)
+10-27 00:46  stage 8: A/B against final_v39/claude_final.exe at 20,000 nodes (3,200 games)
+10-27 01:08    20k nodes: +11.5 +/- 7.9 Elo (3200 games, W 1072 L 966 D 1162)
+10-27 01:08  stage 8b: A/B at 60,000 nodes (1,600 games)
+10-27 01:40    60k nodes: +5.0 +/- 9.9 Elo (1600 games)
+10-27 01:40  RESULT: ACCEPTED | 20k nodes: +11.5 +/- 7.9 over 3200 games -> passes | 60k nodes: +5.0 +/- 9.9 over 1600 games -> positive
+10-27 01:40  v40e run finished

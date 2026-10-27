@@ -1,0 +1,9 @@
+10-27 08:21 start (candidate dev/b40_r40z; first 3,200 games at 20k nodes in v40e_status.txt: +11.5 +/- 7.9)
+10-27 08:27 verification: v40: 27 checks, 0 failed, 505 s
+10-27 09:00 20,000 nodes, second 3,200 games (independent confirmation): ('8.80', '7.98', '3200', '1058', '977', '1165')
+10-27 09:13 timed 3+0.03 (800 games, 64 MB): ('-12.17', '16.23', '800', '243', '271', '286')
+10-27 09:31 timed 5+0.1 (400 games, 64 MB): ('33.98', '21.45', '400', '139', '100', '161')
+10-27 09:31 bench_pin: v40.exe                      nodes   1234988  n= 7  nps median   1500592  best   1511613  min   1267954  spread(max-min)/med 16.2%  vs first  +0.0 %
+ claude_final.exe             nodes   1110401  n= 7  nps median   1480534  best   1527374  min   1364128  spread(max-min)/med 11.0%  vs first  -1.3 %
+ 
+10-27 09:31 done

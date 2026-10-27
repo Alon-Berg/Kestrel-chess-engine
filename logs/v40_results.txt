@@ -1,0 +1,8 @@
+MEASURED - Kestrel 1.0 against Claude 39 (fastchess, 1 thread, Experience and OwnBook off; raw lines tests/v40_vs_39_raw.txt, tests/v40e_status.txt)
+  equal nodes       20,000 nodes per move, first 3,200 games (the games the release decision was made on): +11.5 +/- 7.9 Elo (W 1072  L 966  D 1162);
+                    second, independent 3,200 games (played afterwards): +8.8 +/- 8.0 Elo (W 1058  L 977  D 1165);
+                    pooled 6,400 games: +10.2 +/- 6.8 (95 % interval, plain win / draw / loss) - the interval is above 0.
+                    60,000 nodes per move, 1,600 games: +5.0 +/- 9.9 Elo (W 471  L 448  D 681).
+  timed games       3+0.03, 64 MB, 800 games: -12.2 +/- 16.2 (W 243  L 271  D 286); 5+0.1 (the tournament time control), 400 games: +34.0 +/- 21.4 (W 139  L 100  D 161).  Run AFTER the equal-node tests as a sanity check; NOT part of the release rule.
+  speed             pinned depth-14 bench (median of 7, tests/v40_bench_pin.txt): Kestrel 1.0 searches 1234988 nodes at 1500592 nodes/s, Claude 39 1110401 nodes at 1480534 nodes/s (same network size and evaluation code; the new nets give a slightly different tree).
+  tests             27-check verification passed (tests/v40_verify_log.txt); the long fuzz campaign and the extra tests of 38.1 / 39 were run again on the Kestrel build, see below.
