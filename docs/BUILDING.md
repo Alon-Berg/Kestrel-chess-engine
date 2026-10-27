@@ -20,6 +20,15 @@ g++ -std=c++17 -O3 -march=x86-64-v2 -static -pthread -DNDEBUG -o kestrel.exe bui
 
 `-march=x86-64-v2` needs SSE4.2 and POPCNT, plain `-march=x86-64` runs on any 64-bit CPU. The x86-64-v3 build is the README one (no patch).
 
+The Windows release exes are additionally stripped (`-s`) and carry a version-info block (`scripts/kestrel.rc`):
+
+```
+windres scripts/kestrel.rc -O coff -o kestrel_rc.o
+g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -s -o kestrel.exe src/kestrel_1_0.cpp kestrel_rc.o
+```
+
+This changes no code or data: every section of the stripped x86-64-v3 exe is byte-identical to the fully tested one, only the symbol table, the version info and the timestamp differ. It was done because Microsoft's machine-learning heuristic flagged the first, unstripped exe on VirusTotal (1 of 71 engines, `Trojan:Win32/Wacatac.C!ml`, a false positive); the stripped exe with version info scored 0 of 71. The executables are not code-signed.
+
 ## Linux and macOS with Zig as the cross compiler (what the release builds use)
 
 ```
