@@ -1,0 +1,14 @@
+Kestrel 2.0 beta 1 (network snapshot from about the middle of the planned training run), x86-64-v3 build.
+fastchess, 1 thread, Hash 32 MB, Experience and OwnBook off, 300 games per line (150 opening pairs, colours swapped), time control base+increment in seconds, 6 games at a time on one laptop.
+Elo = new build against the older Kestrel; the value after +/- is fastchess's 95 % interval; W / L / D from the point of view of the new build.
+
+against Kestrel 1.1
+  1+0.01   +15.06 +/- 31.59   W 122  L 109  D  69
+  2+0.02   +12.75 +/- 28.10   W 125  L 114  D  61
+  3+0.03   +64.42 +/- 28.73   W 144  L  89  D  67
+against Kestrel 1.0
+  1+0.01   +27.85 +/- 32.74   W 131  L 107  D  62
+  2+0.02   +51.33 +/- 30.96   W 138  L  94  D  68
+  3+0.03   +31.35 +/- 27.53   W 128  L 101  D  71
+
+depth-12 bench with the beta network: 934,326 nodes on the x86-64-v3, x86-64-v2 and generic Windows builds; about 832,000 / 522,000 / 527,000 nodes per second (performance core, nothing else running).

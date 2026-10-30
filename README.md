@@ -1,5 +1,7 @@
 # Kestrel
 
+> **Kestrel 2.0 beta 1 (pre-release)** is on the [Releases page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases): one large neural network (76 MB, inside the exe) instead of two small ones; the source is `src/kestrel_2_0.cpp` and needs the network file `kestrel_net.bin` from the release to build (see [docs/BUILDING.md](docs/BUILDING.md)). The text below describes Kestrel 1.1, the latest stable release.
+
 Kestrel is a UCI chess engine written in a single C++17 file (bitboards, alpha-beta search) with two embedded neural networks (king-bucketed inputs) blended with a hand-written evaluation.
 This is **Kestrel 1.1** (development version 40.1), a bug-fix release on **Kestrel 1.0** (40.0), the first release under the name Kestrel; the engine was called *Claude* up to version 39
 (the comment at the top of the source and the book file name still say Claude: the code is identical to Claude 39 apart from the engine name and the experience-file name).

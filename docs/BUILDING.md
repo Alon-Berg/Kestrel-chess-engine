@@ -38,3 +38,17 @@ The executables are not code-signed.
 * Windows x86-64-v2 and x86-64: bench equal to v3 (439,247 nodes, depth 12) and the 1.1 features test (builds without warnings, equal bench, `CLAUDE_FORCE_PEXT=1` harmless).
 * The pthread wrapper was compiled and run on Windows (winpthreads) with a deliberately tiny 128 KB main stack: 5 endgame / middlegame positions on 1 and 4 threads, `stop`, MultiPV.
 * Linux and macOS builds were compiled with Zig and checked for file format but **never run**: no Linux or macOS machine was available.
+
+## Kestrel 2.0 (pre-release)
+
+`src/kestrel_2_0.cpp` is the whole engine. The network (76 MB) is embedded with `.incbin "kestrel_net.bin"`, and the assembler looks that file up in the **current directory** (not next to the source).
+The network is not stored in the git history (76 MB per version): download `kestrel_net_2_0_beta1.bin` from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
+
+| Target | Compile with |
+|---|---|
+| Windows / Linux x86-64-v3 (AVX2 + BMI2) | `g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_2_0.cpp` |
+| x86-64-v2, plain x86-64 | same with `-march=x86-64-v2` or `-march=x86-64` (plain evaluation loops, about 37 % slower) |
+| ARM64, macOS, Linux cross builds | as for 1.1 above with `kestrel_2_0.cpp` (compiled with Zig, never run) |
+
+The AVX2 evaluation code is compiled only when the compiler targets AVX2 (the last layers also need FMA); every other target uses plain loops with exactly the same results
+(bench depth 12 = 934,326 nodes with the beta network on all three Windows builds). The tools used to find and check the speed-ups are not part of the repository.

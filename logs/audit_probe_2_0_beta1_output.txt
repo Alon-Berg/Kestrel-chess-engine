@@ -1,0 +1,85 @@
+PASS  CRLF: uciok + readyok + bestmove  | ['info depth 2 score cp 30 nodes 119 nps 39666 hashfull 0 time 3 pv c2c4 c7c5', 'info depth 3 score cp 8 nodes 235 nps 58750 hashfull 0 time 4 pv c2c4 c7c5 e2e3', 'bestmove c2c4']
+PASS  CRLF: setoption with CR + position moves + quit exits  | ['bestmove a2a3']
+PASS  CRLF: 'quit\r' ends the process  | alive=False rc=0
+PASS  EOF at idle: process exits  | alive=False rc=0
+PASS  EOF during 'go infinite': process exits  | alive=False rc=0
+PASS  3000-ply move list, go depth 6  | ('bestmove d2d4', True, 0)
+PASS  12000-ply move list, go depth 5  | ('bestmove d2d4', True, 0)
+PASS  10000-ply K vs K move list  | ('bestmove a1b1', True, 0)
+PASS  numbers: go wtime 99999999999999 btime 99999999999999 winc 99999999999 binc 999  | bestmove=bestmove c2c4 dt=0.3s rc=0
+PASS  numbers: go wtime -500 btime -500 depth 4  | bestmove=bestmove c2c4 dt=0.2s rc=0
+PASS  numbers: go wtime 0 btime 0  | bestmove=bestmove d2d4 dt=0.6s rc=0
+PASS  numbers: go wtime 1 btime 1 movestogo 1  | bestmove=bestmove d2d4 dt=0.4s rc=0
+PASS  numbers: go movetime -5  | bestmove=bestmove c2c4 dt=0.2s rc=0
+PASS  numbers: go movetime 0  | bestmove=bestmove d2d4 dt=0.8s rc=0
+PASS  numbers: go depth 0  | bestmove=bestmove d2d4 dt=0.4s rc=0
+PASS  numbers (no limit until stop): go depth -3  | bestmove after stop=bestmove d2d4
+PASS  numbers (no limit until stop): go depth 99999999999  | bestmove after stop=bestmove d2d4
+PASS  numbers: go nodes 0  | bestmove=bestmove d2d4 dt=0.4s rc=0
+PASS  numbers (no limit until stop): go nodes -1  | bestmove after stop=bestmove d2d4
+PASS  numbers (no limit until stop): go nodes 99999999999999999999  | bestmove after stop=bestmove d2d4
+PASS  numbers: go mate 0  | bestmove=bestmove c2c4 dt=0.4s rc=0
+PASS  numbers (no limit until stop): go mate -2  | bestmove after stop=bestmove d2d4
+PASS  numbers: go depth abc  | bestmove=bestmove d2d4 dt=0.4s rc=0
+PASS  numbers: go wtime abc btime  | bestmove=bestmove c2c4 dt=0.3s rc=0
+PASS  numbers: go movestogo 0 wtime 1000 btime 1000  | bestmove=bestmove d2d4 dt=0.3s rc=0
+PASS  numbers (no limit until stop): go searchmoves  | bestmove after stop=bestmove d2d4
+PASS  numbers: go searchmoves e2e5 depth 3  | bestmove=bestmove c2c4 dt=0.4s rc=0
+PASS  numbers (no limit until stop): go ponder depth 3  | bestmove after stop=bestmove c2c4
+PASS  numbers (no limit until stop): go infinite depth 3 nodes 1000  | bestmove after stop=bestmove c2c4
+PASS  setoption name Hash value 0  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Hash value -1  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Hash value 99999999999  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Hash value abc  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Hash  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Threads value 0  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Threads value -4  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Threads value 1000  | bestmove=bestmove d2d4 rc=0 last=['bestmove d2d4']
+PASS  setoption name MultiPV value 0  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name MultiPV value 1000  | bestmove=bestmove d2d4 rc=0 last=['bestmove d2d4']
+PASS  setoption name Move Overhead value -5  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Move Overhead value 999999999999  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name UCI_Elo value 0  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name UCI_Elo value 99999  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name UCI_LimitStrength value maybe  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name NoSuchOption value 1  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name   | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name value 5  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name name  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Ponder value true  | bestmove=bestmove c2c4 ponder c7c5 rc=0 last=['bestmove c2c4 ponder c7c5']
+PASS  setoption name ExperienceFile value  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name ExperienceFile value NUL  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name ExperienceFile value C:\\Windows\\nope\\x.dat  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  setoption name Clear Hash  | bestmove=bestmove c2c4 rc=0 last=['bestmove c2c4']
+PASS  position fen  | bestmove=bestmove c2c4 rc=0
+PASS  position fen 8/8/8/8/8/8/8/8 w - - 0 1  | bestmove=bestmove c2c4 rc=0
+PASS  position fen 8/8/8/8/8/8/8/K7 w - - 0 1  | bestmove=bestmove c2c4 rc=0
+PASS  position fen k7/8/8/8/8/8/8/K7 w - - 0 1  | bestmove=bestmove a1b1 rc=0
+PASS  position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR  | bestmove=bestmove c2c4 rc=0
+PASS  position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x - - 0 1  | bestmove=bestmove c2c4 rc=0
+PASS  position fen 4k3/8/8/8/8/8/8/4K2R w K - 0 1  | bestmove=bestmove h1h8 rc=0
+PASS  position startpos moves e2e5  | bestmove=bestmove c2c4 rc=0
+PASS  position startpos moves e2e4 e2e4  | bestmove=bestmove c7c5 rc=0
+PASS  position startpos moves zzzz  | bestmove=bestmove c2c4 rc=0
+PASS  position startpos moves e2e4 e7e5 moves  | bestmove=bestmove g1f3 rc=0
+PASS  position startpos moves e1g1  | bestmove=bestmove c2c4 rc=0
+PASS  position moves e2e4  | bestmove=bestmove c7c5 rc=0
+PASS  position  | bestmove=bestmove c2c4 rc=0
+PASS  position fen 4k3/8/8/8/8/8/8/4K3 w - - 99999999999 99999999999  | bestmove=bestmove e1d1 rc=0
+PASS  position fen 4k3/8/8/8/8/8/8/4K3 w - e3 0 1  | bestmove=bestmove e1d1 rc=0
+PASS  position fen 4k3/P7/8/8/8/8/8/4K3 w - - 0 1  | bestmove=bestmove a7a8q rc=0
+PASS  position fen 4k3/8/8/8/8/8/p7/4K3 w - - 0 1  | bestmove=bestmove e1d2 rc=0
+PASS  position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0  | bestmove=bestmove c2c4 rc=0
+PASS  go before any position  | bestmove c2c4
+PASS  stop / ponderhit with no search  | ['option name UCI_Chess960 type check default false', 'uciok']
+PASS  isready answered while searching  | ['info depth 7 score cp 14 nodes 3248 nps 124923 hashfull 1 time 26 pv d2d4 e7e6 e2e4 d7d5 e4d5 e6d5 g1f3', 'bestmove d2d4']
+PASS  back-to-back go commands  | bestmoves=5 alive=True
+PASS  position / setoption / ucinewgame during a search, then stop  | ('bestmove a2a3', True, 0)
+PASS  2 MB single line, then isready  | (True, 0, ['readyok'])
+PASS  binary garbage line (no Ctrl-Z: the Windows C runtime ends a text pipe there), then isready  | (True, 0, ['readyok'])
+PASS  NUL / invalid UTF-8 bytes glued to command words are ignored, the next clean command works  | (True, 0, ['readyok'])
+PASS  100,000 empty lines, then isready  | (True, 0, ['readyok'])
+PASS  leading / trailing whitespace and tabs  | ['uciok', 'readyok']
+PASS  (info) upper-case commands are ignored like in Stockfish
+
+83 cases, 0 failed

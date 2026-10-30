@@ -3,3 +3,4 @@
 *.dat
 kestrel_experience*
 build/
+kestrel_net*.bin
