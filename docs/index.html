@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kestrel Chess Engine</title>
+<meta name="description" content="Kestrel is a UCI chess engine in one C++17 file. Version 2.0 beta 1 evaluates every position with one large neural network.">
+<style>
+/* Layout: an instrument panel. A left-aligned wordmark, a real UCI session as the opening, measurements drawn to scale. Amber marks what was measured. */
+:root{
+  --bg:#edf1f4; --surface:#ffffff; --ink:#12202b; --muted:#4b5d69; --line:#ccd6dd; --soft:#dde5ea;
+  --accent:#e39a1e; --accent-ink:#12202b; --link:#1f5f8b;
+  --term:#0f1c25; --term-ink:#dfe9ef; --term-dim:#86a0b0; --term-hi:#f2b34c;
+  --display:"Bahnschrift","Segoe UI Variable Display","DIN Alternate","Avenir Next Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:system-ui,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,"Liberation Mono",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d171f;--surface:#14232d;--ink:#e7eef3;--muted:#97a9b5;--line:#27404e;--soft:#1b2e3a;--accent:#f2a93b;--accent-ink:#0d171f;--link:#7db8e2;--term:#08111a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0d171f;--surface:#14232d;--ink:#e7eef3;--muted:#97a9b5;--line:#27404e;--soft:#1b2e3a;--accent:#f2a93b;--accent-ink:#0d171f;--link:#7db8e2;--term:#08111a;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:17px/1.6 var(--body);padding-block:0}
+a{color:var(--link);text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header.top{display:flex;flex-wrap:wrap;gap:.5rem 2rem;align-items:baseline;justify-content:space-between;padding-block:1.1rem}
+.mark{font:700 1.35rem/1 var(--display);letter-spacing:.04em;text-transform:uppercase;color:var(--ink);text-decoration:none}
+nav{display:flex;flex-wrap:wrap;gap:.25rem 1.4rem;font:500 .8rem/1.2 var(--mono);text-transform:uppercase;letter-spacing:.08em}
+nav a{color:var(--muted);text-decoration:none;padding-block:.3rem}
+nav a:hover{color:var(--ink)}
+.hero{display:grid;gap:2.5rem;grid-template-columns:minmax(0,1fr);padding-block:2.5rem 3.5rem;align-items:center}
+@media (min-width:900px){.hero{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);padding-block:3.5rem 4.5rem}}
+.eyebrow{font:500 .78rem/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 .9rem}
+h1{font:700 clamp(3.4rem,11vw,6.2rem)/.92 var(--display);letter-spacing:-.02em;margin:0 0 1.2rem;text-transform:uppercase}
+.lead{font-size:1.25rem;line-height:1.5;max-width:34rem;margin:0 0 1.8rem;text-wrap:pretty}
+.cta{display:flex;flex-wrap:wrap;gap:.7rem}
+.btn{display:inline-flex;align-items:center;padding:.8rem 1.25rem;border-radius:5px;font:600 1rem/1.2 var(--body);text-decoration:none;border:1px solid var(--line);color:var(--ink);background:var(--surface)}
+.btn.main{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:hover{filter:brightness(.96)}
+.fine{margin:1rem 0 0;font-size:.9rem;color:var(--muted)}
+pre.term{margin:0;background:var(--term);color:var(--term-ink);font:.82rem/1.55 var(--mono);padding:1.1rem 1.2rem;border-radius:6px;overflow-x:auto;border:1px solid var(--line)}
+pre.term .in{color:var(--term-hi)} pre.term .dim{color:var(--term-dim)} pre.term b{font-weight:600;color:#fff}
+.cap{font:.78rem/1.4 var(--mono);color:var(--muted);margin:.6rem 0 0}
+.board{height:32px;background:repeating-conic-gradient(var(--soft) 0 25%,transparent 0 50%) 0 0/32px 32px;border-block:1px solid var(--line)}
+section{padding-block:3.5rem}
+section+section{border-top:1px solid var(--line)}
+h2{font:700 clamp(1.7rem,4.5vw,2.4rem)/1.1 var(--display);letter-spacing:-.005em;margin:0 0 .8rem;text-wrap:balance}
+h3{font:600 1.15rem/1.3 var(--body);margin:0 0 .4rem}
+.intro{max-width:44rem;color:var(--muted);margin:0 0 2rem;text-wrap:pretty}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));gap:0;margin:0;padding:0;border-block:1px solid var(--line)}
+.facts div{padding:1rem 1.1rem;border-left:1px solid var(--line)}
+.facts div:first-child{border-left:0;padding-left:0}
+.facts dt{font:700 1.9rem/1.1 var(--display);font-variant-numeric:tabular-nums}
+.facts dd{margin:.2rem 0 0;font-size:.88rem;color:var(--muted)}
+.cards{display:grid;gap:1.2rem;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),1fr))}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1.4rem;min-width:0}
+.card.new{border-top:4px solid var(--accent)}
+.tag{display:inline-block;font:500 .72rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:.35rem .5rem;border:1px solid var(--line);border-radius:3px;color:var(--muted);margin-bottom:.8rem}
+.card.new .tag{border-color:var(--accent);color:var(--ink)}
+.card p{margin:.4rem 0 1rem;color:var(--muted)}
+.tablewrap{overflow-x:auto;margin-block:1rem 0}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{padding:.6rem .75rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font:500 .74rem/1.2 var(--mono);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);white-space:nowrap}
+.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tc{font-family:var(--mono)}
+.sub{display:block;font-size:.84rem;color:var(--muted)}
+.flag{font:500 .7rem/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:.15rem .35rem;white-space:nowrap}
+.plotbox{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1rem}
+svg.plot{display:block;width:100%;min-width:560px;height:auto}
+svg.plot .grid{stroke:var(--line);stroke-width:1} svg.plot .zero{stroke:var(--ink);stroke-width:1.5}
+svg.plot text{font-family:var(--mono);fill:var(--muted);font-size:13px}
+svg.plot .grp{fill:var(--ink);font-weight:600;font-size:14px} svg.plot .lab{fill:var(--ink)} svg.plot .val{fill:var(--ink)} svg.plot .axis{font-size:12.5px}
+svg.plot .wh{stroke-width:2.5} svg.plot .wh.sig{stroke:var(--accent)} svg.plot .wh.ns{stroke:var(--muted)}
+svg.plot .pt.sig{fill:var(--accent);stroke:var(--accent)} svg.plot .pt.ns{fill:var(--surface);stroke:var(--muted);stroke-width:2.5}
+ul.plain{margin:1rem 0 0;padding-left:1.2rem;max-width:46rem} ul.plain li{margin:.45rem 0;text-wrap:pretty}
+ol.steps{max-width:46rem;padding-left:1.3rem} ol.steps li{margin:.7rem 0;text-wrap:pretty}
+.opts{columns:2 16rem;column-gap:2rem;font:.88rem/1.7 var(--mono);margin:1rem 0 0;padding:0;list-style:none}
+.opts li{break-inside:avoid}
+.pipe{display:grid;gap:0;grid-template-columns:repeat(auto-fit,minmax(11.5rem,1fr));margin:1.5rem 0 0;padding:0;list-style:none;counter-reset:s;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.pipe li{padding:1.1rem 1.1rem 1.2rem;border-left:1px solid var(--line);counter-increment:s;min-width:0}
+.pipe li:first-child{border-left:0}
+.pipe li::before{content:counter(s);display:block;font:500 .75rem/1 var(--mono);color:var(--muted);margin-bottom:.6rem}
+.pipe strong{display:block;font:700 1.45rem/1.1 var(--display);font-variant-numeric:tabular-nums;margin-bottom:.35rem}
+.pipe span{font-size:.9rem;color:var(--muted);display:block}
+pre.code{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:1rem 1.1rem;font:.85rem/1.6 var(--mono);overflow-x:auto;margin:1rem 0}
+code{font-family:var(--mono);font-size:.9em;background:var(--soft);padding:.1em .35em;border-radius:3px}
+footer{border-top:1px solid var(--line);padding-block:2rem 3rem;color:var(--muted);font-size:.92rem}
+footer p{margin:.4rem 0;max-width:46rem}
+@media (max-width:640px){.facts div{border-left:0;padding-left:0;border-top:1px solid var(--line)}.facts div:first-child{border-top:0}.pipe li{border-left:0;border-top:1px solid var(--line)}.pipe li:first-child{border-top:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <a class="mark" href="#top">Kestrel</a>
+  <nav aria-label="Sections"><a href="#versions">Versions</a><a href="#strength">Strength</a><a href="#download">Download</a><a href="#use">Use it</a><a href="#how">How it works</a><a href="#build">Build</a></nav>
+</header>
+<div class="hero" id="top">
+  <div>
+    <p class="eyebrow">UCI chess engine &middot; MIT licence</p>
+    <h1>Kestrel</h1>
+    <p class="lead">A chess engine in one C++17 file. Version 2.0 beta 1 judges every position with a single 76 MB neural network.</p>
+    <div class="cta"><a class="btn main" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v2.0-beta1">Download 2.0 beta 1</a><a class="btn" href="#versions">Stable version 1.1</a><a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine">Source on GitHub</a></div>
+    <p class="fine">Pre-release for Windows, Linux and macOS. The 2.0 final will use a longer-trained network.</p>
+  </div>
+  <div>
+<pre class="term" aria-label="Example UCI session"><span class="dim">$</span> kestrel
+<span class="in">&gt; uci</span>
+<b>id name Kestrel 2.0 beta 1</b>
+id author Claude
+uciok
+<span class="in">&gt; position startpos</span>
+<span class="in">&gt; go depth 13</span>
+info depth 5  score cp 15  nodes 921    time 45   pv d2d4 d7d5 c2c4 d5c4 e2e4
+info depth 8  score cp 15  nodes 6387   time 125  pv d2d4 g8f6 c2c4 e7e6 g1f3 d7d5
+info depth 11 score cp 20  nodes 27629  time 275  pv d2d4 d7d5 c2c4 d5c4 e2e3 c7c5
+info depth 13 score cp 13  nodes 135782 time 992  pv d2d4 d7d5 c2c4 d5c4 e2e3 a7a6
+<b>bestmove d2d4</b></pre>
+    <p class="cap">Output of the 2.0 beta (Windows build), some fields left out.</p>
+  </div>
+</div>
+</div>
+<div class="board" aria-hidden="true"></div>
+<div class="wrap">
+<section style="padding-top:2rem">
+  <dl class="facts">
+    <div><dt>88 MB</dt><dd>the Windows exe, network included</dd></div>
+    <div><dt>39 million</dt><dd>parameters in the network</dd></div>
+    <div><dt>250 million</dt><dd>training positions (238 M from Lichess, 12 M from Kestrel's own games)</dd></div>
+    <div><dt>8</dt><dd>search threads at most</dd></div>
+  </dl>
+</section>
+
+<section id="versions">
+  <h2>Two versions</h2>
+  <p class="intro">Both play standard chess and Chess960 and work in any UCI program, such as Cute Chess, Arena, En Croissant or Lucas Chess.</p>
+  <div class="cards">
+    <article class="card new">
+      <span class="tag">Pre-release</span>
+      <h3>Kestrel 2.0 beta 1</h3>
+      <p>One large network replaces the two small ones and the hand-written evaluation. The AVX2 build searches about 830,000 nodes per second in the depth-12 benchmark, about 30 % fewer than 1.1, and wins that back with a better evaluation in short games.</p>
+      <a class="btn main" href="#download">Choose a file</a> <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v2.0-beta1">Release notes</a>
+    </article>
+    <article class="card">
+      <span class="tag">Stable</span>
+      <h3>Kestrel 1.1</h3>
+      <p>Two small networks blended with a hand-written evaluation. The exe is about 13 MB. It fixes the evaluation of two knights against a bare king and the thread-stack and file-path problems of 1.0 on Linux and macOS.</p>
+      <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v1.0">Downloads for 1.1</a>
+    </article>
+  </div>
+</section>
+
+<section id="strength">
+  <h2>How strong is it?</h2>
+  <p class="intro">Kestrel 2.0 beta 1 played 300 games per line against the older versions: one thread, 32 MB hash, no opening book, the same openings for both sides. Each bar is fastchess's 95 % interval.</p>
+  <div class="plotbox"><svg class="plot" viewBox="0 0 680 330" role="img" aria-labelledby="plot-t plot-d" xmlns="http://www.w3.org/2000/svg"><title id="plot-t">Elo of Kestrel 2.0 beta 1 against Kestrel 1.1 and 1.0</title><desc id="plot-d">Six results with their 95 percent intervals; the numbers are in the table below.</desc><line class="grid" x1="168.0" x2="168.0" y1="30" y2="270"/><text class="tick" x="168.0" y="290" text-anchor="middle">-40</text><line class="grid" x1="233.1" x2="233.1" y1="30" y2="270"/><text class="tick" x="233.1" y="290" text-anchor="middle">-20</text><line class="zero" x1="298.1" x2="298.1" y1="30" y2="270"/><text class="tick" x="298.1" y="290" text-anchor="middle">0</text><line class="grid" x1="363.2" x2="363.2" y1="30" y2="270"/><text class="tick" x="363.2" y="290" text-anchor="middle">+20</text><line class="grid" x1="428.3" x2="428.3" y1="30" y2="270"/><text class="tick" x="428.3" y="290" text-anchor="middle">+40</text><line class="grid" x1="493.3" x2="493.3" y1="30" y2="270"/><text class="tick" x="493.3" y="290" text-anchor="middle">+60</text><line class="grid" x1="558.4" x2="558.4" y1="30" y2="270"/><text class="tick" x="558.4" y="290" text-anchor="middle">+80</text><line class="grid" x1="623.5" x2="623.5" y1="30" y2="270"/><text class="tick" x="623.5" y="290" text-anchor="middle">+100</text><text class="grp" x="8" y="24">against Kestrel 1.1</text><text class="lab" x="160" y="56" text-anchor="end">1+0.01</text><line class="wh ns" x1="244.4" x2="449.9" y1="52" y2="52"/><line class="wh ns" x1="244.4" x2="244.4" y1="47" y2="57"/><line class="wh ns" x1="449.9" x2="449.9" y1="47" y2="57"/><circle class="pt ns" cx="347.1" cy="52" r="6"/><text class="val" x="459.9" y="56">+15 ± 32</text><text class="lab" x="160" y="86" text-anchor="end">2+0.02</text><line class="wh ns" x1="248.2" x2="431.0" y1="82" y2="82"/><line class="wh ns" x1="248.2" x2="248.2" y1="77" y2="87"/><line class="wh ns" x1="431.0" x2="431.0" y1="77" y2="87"/><circle class="pt ns" cx="339.6" cy="82" r="6"/><text class="val" x="441.0" y="86">+13 ± 28</text><text class="lab" x="160" y="116" text-anchor="end">3+0.03</text><line class="wh sig" x1="414.2" x2="601.2" y1="112" y2="112"/><line class="wh sig" x1="414.2" x2="414.2" y1="107" y2="117"/><line class="wh sig" x1="601.2" x2="601.2" y1="107" y2="117"/><circle class="pt sig" cx="507.7" cy="112" r="6"/><text class="val" x="611.2" y="116">+64 ± 29</text><text class="grp" x="8" y="150">against Kestrel 1.0</text><text class="lab" x="160" y="182" text-anchor="end">1+0.01</text><line class="wh ns" x1="282.2" x2="495.3" y1="178" y2="178"/><line class="wh ns" x1="282.2" x2="282.2" y1="173" y2="183"/><line class="wh ns" x1="495.3" x2="495.3" y1="173" y2="183"/><circle class="pt ns" cx="388.7" cy="178" r="6"/><text class="val" x="505.3" y="182">+28 ± 33</text><text class="lab" x="160" y="212" text-anchor="end">2+0.02</text><line class="wh sig" x1="364.4" x2="565.9" y1="208" y2="208"/><line class="wh sig" x1="364.4" x2="364.4" y1="203" y2="213"/><line class="wh sig" x1="565.9" x2="565.9" y1="203" y2="213"/><circle class="pt sig" cx="465.1" cy="208" r="6"/><text class="val" x="575.9" y="212">+51 ± 31</text><text class="lab" x="160" y="242" text-anchor="end">3+0.03</text><line class="wh sig" x1="310.6" x2="489.7" y1="238" y2="238"/><line class="wh sig" x1="310.6" x2="310.6" y1="233" y2="243"/><line class="wh sig" x1="489.7" x2="489.7" y1="233" y2="243"/><circle class="pt sig" cx="400.1" cy="238" r="6"/><text class="val" x="499.7" y="242">+31 ± 28</text><text class="axis" x="412.0" y="318" text-anchor="middle">Elo difference of 2.0 beta 1 (95 % interval); right of 0 = stronger than the older Kestrel</text></svg></div>
+  <ul class="plain">
+    <li>Filled dots have a bar that stays right of zero, so the gain is clear: 3+0.03 against 1.1, and 2+0.02 and 3+0.03 against 1.0. At 1+0.01, about 20 ms per move, the new network is about level with 1.1.</li>
+    <li>Time controls are base seconds plus increment in seconds. The games are short and were played on one laptop. Longer time controls are not published yet. No rating list has tested Kestrel.</li>
+  </ul>
+  <div class="tablewrap"><table><thead><tr><th>Opponent</th><th>Time control</th><th class="n">Elo</th><th class="n">95 % interval</th><th class="n">Won</th><th class="n">Lost</th><th class="n">Drawn</th></tr></thead><tbody><tr><td>1.1</td><td class="tc">1+0.01</td><td class="n">+15</td><td class="n">± 32</td><td class="n">122</td><td class="n">109</td><td class="n">69</td></tr><tr><td>1.1</td><td class="tc">2+0.02</td><td class="n">+13</td><td class="n">± 28</td><td class="n">125</td><td class="n">114</td><td class="n">61</td></tr><tr><td>1.1</td><td class="tc">3+0.03</td><td class="n">+64</td><td class="n">± 29</td><td class="n">144</td><td class="n">89</td><td class="n">67</td></tr><tr><td>1.0</td><td class="tc">1+0.01</td><td class="n">+28</td><td class="n">± 33</td><td class="n">131</td><td class="n">107</td><td class="n">62</td></tr><tr><td>1.0</td><td class="tc">2+0.02</td><td class="n">+51</td><td class="n">± 31</td><td class="n">138</td><td class="n">94</td><td class="n">68</td></tr><tr><td>1.0</td><td class="tc">3+0.03</td><td class="n">+31</td><td class="n">± 28</td><td class="n">128</td><td class="n">101</td><td class="n">71</td></tr></tbody></table></div>
+</section>
+
+<section id="download">
+  <h2>Download 2.0 beta 1</h2>
+  <p class="intro">Unzip and add <code>kestrel.exe</code> (or <code>kestrel</code>) to your chess program. The x86-64-v3 build is the only one with the AVX2 evaluation code; the other builds give the same moves and run about 37 % slower. The exe is large because the network is inside it.</p>
+  <div class="tablewrap"><table><thead><tr><th>Platform</th><th>File</th><th class="n">Size</th></tr></thead><tbody><tr><td>Windows 64-bit<span class="sub">CPU with AVX2 and BMI2 (most PCs since 2015). Recommended.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-windows-x86-64-v3.zip">Kestrel-2.0-beta1-windows-x86-64-v3.zip</a></td><td class="n">57 MB</td></tr><tr><td>Windows 64-bit<span class="sub">CPU with SSE4.2 and POPCNT. About 37 % slower.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-windows-x86-64-v2.zip">Kestrel-2.0-beta1-windows-x86-64-v2.zip</a></td><td class="n">57 MB</td></tr><tr><td>Windows 64-bit<span class="sub">any CPU. About 37 % slower.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-windows-x86-64.zip">Kestrel-2.0-beta1-windows-x86-64.zip</a></td><td class="n">57 MB</td></tr><tr><td>Linux x86-64<span class="sub">AVX2 + BMI2</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-linux-x86-64-v3.tar.gz">Kestrel-2.0-beta1-linux-x86-64-v3.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">57 MB</td></tr><tr><td>Linux x86-64<span class="sub">SSE4.2 + POPCNT</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-linux-x86-64-v2.tar.gz">Kestrel-2.0-beta1-linux-x86-64-v2.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">57 MB</td></tr><tr><td>Linux x86-64<span class="sub">any CPU</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-linux-x86-64.tar.gz">Kestrel-2.0-beta1-linux-x86-64.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">57 MB</td></tr><tr><td>Linux ARM64<span class="sub"></span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-linux-arm64.tar.gz">Kestrel-2.0-beta1-linux-arm64.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">57 MB</td></tr><tr><td>macOS<span class="sub">Intel Macs</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-macos-x86-64.tar.gz">Kestrel-2.0-beta1-macos-x86-64.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">57 MB</td></tr><tr><td>macOS<span class="sub">Apple Silicon</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/Kestrel-2.0-beta1-macos-arm64.tar.gz">Kestrel-2.0-beta1-macos-arm64.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">57 MB</td></tr><tr><td>Network file<span class="sub">only needed to build from source or to load with EvalFile</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/kestrel_net_2_0_beta1.bin">kestrel_net_2_0_beta1.bin</a></td><td class="n">76 MB</td></tr><tr><td>Checksums<span class="sub">SHA-256 of every file</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v2.0-beta1/SHA256.txt">SHA256.txt</a></td><td class="n">1 KB</td></tr></tbody></table></div>
+  <p class="fine">The Windows builds were run; the AVX2 build also passed 83 protocol checks and 31 rules checks. Linux and macOS builds were compiled with Zig and checked for file format, but nobody has run them yet. Please open an issue if one does not start. Version 1.1 files are on the <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v1.0">1.1 release page</a>.</p>
+</section>
+
+<section id="use">
+  <h2>Use it</h2>
+  <ol class="steps">
+    <li>Download a file above and unzip it. Keep <code>claude_book.txt</code> next to the engine if you want the opening book (the book file keeps its old name).</li>
+    <li>In your chess program, add a new UCI engine and point it at <code>kestrel.exe</code>. In Cute Chess this is Tools, Settings, Engines, the plus button.</li>
+    <li>Set <code>Hash</code> to the memory you can spare and <code>Threads</code> to the cores you want to use.</li>
+  </ol>
+  <p class="intro" style="margin-top:1.4rem;margin-bottom:0">Options include:</p>
+  <ul class="opts"><li>Hash, Threads (1 to 8)</li><li>MultiPV, Ponder</li><li>OwnBook, Experience</li><li>Move Overhead</li><li>UCI_LimitStrength, UCI_Elo</li><li>UCI_Chess960</li><li>UCI_ShowWDL, UCI_AnalyseMode</li><li>EvalFile, EvalScale (new in 2.0)</li></ul>
+  <p class="fine">There is no Syzygy tablebase support.</p>
+</section>
+
+<section id="how">
+  <h2>How it works</h2>
+  <p class="intro">The search is a conventional alpha-beta search with a transposition table. The new part in 2.0 is the evaluation: one network, in five stages.</p>
+  <ol class="pipe">
+    <li><strong>24,576</strong><span>inputs per side: 12 piece kinds, 64 squares, 32 positions of the own king (mirrored)</span></li>
+    <li><strong>1,536</strong><span>numbers per side, kept up to date move by move instead of recomputed</span></li>
+    <li><strong>768</strong><span>products per side from the two halves of those numbers; about 90 % are zero</span></li>
+    <li><strong>16 &rarr; 32 &rarr; 1</strong><span>three small layers, one of 8 weight sets chosen by the number of pieces</span></li>
+    <li><strong>centipawns</strong><span>the score the search uses</span></li>
+  </ol>
+  <ul class="plain">
+    <li><strong>Training data.</strong> About 238 million positions from the Lichess evaluation database (Stockfish evaluations, CC0) and 12 million positions from Kestrel's own games, trained on the CPU with Adam. Stockfish only supplied labels; none of its code is in Kestrel.</li>
+    <li><strong>Speed.</strong> A network this size costs time, so the evaluation code skips the zero inputs, builds the per-side numbers only for positions that are really evaluated, keeps a refresh cache for king moves and loads the weights ahead of time. Together that made the engine 1.95 times faster than its first version with identical moves and scores.</li>
+    <li><strong>Beta.</strong> The network in beta 1 comes from about the middle of the planned training run. Training continues.</li>
+  </ul>
+</section>
+
+<section id="build">
+  <h2>Build it yourself</h2>
+  <p class="intro">The source is one file, <code>src/kestrel_2_0.cpp</code>. The 76 MB network is not stored in git: download <code>kestrel_net_2_0_beta1.bin</code> from the release, save it as <code>kestrel_net.bin</code> in the folder where you run the compiler, and compile.</p>
+  <pre class="code">g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel.exe src/kestrel_2_0.cpp</pre>
+  <p class="fine">Other CPUs and operating systems: <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/blob/main/docs/BUILDING.md">docs/BUILDING.md</a>.</p>
+</section>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p>Kestrel is released under the MIT licence. Source, releases and issues: <a href="https://github.com/Alon-Berg/Kestrel-chess-engine">github.com/Alon-Berg/Kestrel-chess-engine</a>.</p>
+    <p>Training positions come from the Lichess evaluation database (CC0). Stockfish evaluations were used as labels. Test games were played with fastchess. Kestrel has not been rated by CCRL or any other list.</p>
+  </div>
+</footer>
+</body>
+</html>
