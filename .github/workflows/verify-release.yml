@@ -1,0 +1,149 @@
+name: verify-release
+
+# Runs the binaries that were published on the release page, and builds the source, on Linux, macOS and Windows machines of GitHub Actions.
+# The author has no Linux or macOS machine: this is how the Linux and macOS builds get run at all.
+# Start it by hand (Actions > verify-release > Run workflow, optionally with another release tag) or it runs when this file, the tests or the source change.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag whose published files are tested"
+        required: false
+        default: "v2.1"
+  push:
+    paths:
+      - ".github/workflows/verify-release.yml"
+      - "tests/**"
+      - "src/kestrel_2_0.cpp"
+
+env:
+  REPO: Alon-Berg/Kestrel-chess-engine
+  TAG: ${{ github.event.inputs.tag || 'v2.1' }}
+
+jobs:
+  shipped-binaries:
+    name: shipped ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    asset: linux-x86-64-v3,   ext: tar.gz }
+          - { os: ubuntu-latest,    asset: linux-x86-64-v2,   ext: tar.gz }
+          - { os: ubuntu-latest,    asset: linux-x86-64,      ext: tar.gz }
+          - { os: ubuntu-24.04-arm, asset: linux-arm64,       ext: tar.gz }
+          - { os: macos-latest,     asset: macos-arm64,       ext: tar.gz }
+          - { os: windows-latest,   asset: windows-x86-64-v3, ext: zip }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the published file
+        run: |
+          VER="${TAG#v}"
+          curl -fsSL -o "pkg.${{ matrix.ext }}" "https://github.com/${REPO}/releases/download/${TAG}/Kestrel-${VER}-${{ matrix.asset }}.${{ matrix.ext }}"
+          mkdir pkg
+          if [ "${{ matrix.ext }}" = "zip" ]; then unzip -q pkg.zip -d pkg; else tar xzf pkg.tar.gz -C pkg; fi
+          EXE=$(find pkg -type f \( -name kestrel -o -name kestrel.exe \) | head -n 1)
+          chmod +x "$EXE" || true
+          echo "EXE=$EXE" >> "$GITHUB_ENV"
+          ls -l "$EXE"
+          uname -a || true
+      - name: Depth-12 bench must give the recorded node count
+        run: |
+          case "$TAG" in v2.1) EXPECT=1051844;; v2.0) EXPECT=934326;; *) EXPECT="";; esac
+          OUT=$("$EXE" bench 12 | tail -n 1); echo "$OUT"
+          if [ -n "$EXPECT" ]; then echo "$OUT" | grep -q "nodes $EXPECT " || { echo "bench differs from $EXPECT"; exit 1; }; fi
+      - name: UCI smoke test
+        run: |
+          printf 'uci\nisready\nposition startpos moves e2e4 e7e5\ngo depth 10\nquit\n' | "$EXE" | tee uci.txt
+          grep -q '^uciok' uci.txt && grep -q '^readyok' uci.txt && grep -q '^bestmove ' uci.txt
+
+  test-suite:
+    name: test suite on Linux (published x86-64-v3 build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess
+      - name: Download the published Linux build
+        run: |
+          VER="${TAG#v}"
+          curl -fsSL -o pkg.tar.gz "https://github.com/${REPO}/releases/download/${TAG}/Kestrel-${VER}-linux-x86-64-v3.tar.gz"
+          mkdir pkg && tar xzf pkg.tar.gz -C pkg
+          echo "EXE=$(pwd)/$(find pkg -type f -name kestrel | head -n 1)" >> "$GITHUB_ENV"
+      - name: Protocol and robustness audit (83 cases)
+        run: |
+          python tests/audit_probe.py "$EXE" | tee o.txt
+          grep -E "[0-9]+ cases, 0 failed" o.txt
+      - name: Rules audit against python-chess (31 checks)
+        run: |
+          python tests/audit_sem.py "$EXE" | tee o.txt
+          grep -E "[0-9]+ checks, 0 failed" o.txt
+      - name: Edge cases of the UCI protocol (303)
+        run: |
+          python tests/edge_test.py "$EXE" 30 | tee o.txt
+          grep -E "problems 0" o.txt
+      - name: Chess960 against python-chess
+        run: |
+          python tests/chess960_test.py "$EXE" 60 1 | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: Clock next to a depth or node limit
+        run: |
+          python tests/clock_limit_test.py "$EXE" | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: UCI features (MultiPV, ponder, limit strength, threads)
+        run: |
+          python tests/test_uci_features.py "$EXE" | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: Interoperability with python-chess's UCI client
+        run: |
+          python tests/interop_test.py "$EXE" | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: UCI fuzzer (two seeds)
+        run: |
+          python tests/uci_fuzz.py "$EXE" 400 1 | tee o.txt
+          grep -E "failures 0" o.txt
+          python tests/uci_fuzz.py "$EXE" 400 2 | tee o.txt
+          grep -E "failures 0" o.txt
+      - name: go infinite and stop
+        run: |
+          python tests/race_test.py "$EXE" 20 | tee o.txt
+          grep -F "hung (no bestmove within 5 s): 0" o.txt
+          python tests/infinite_test.py "$EXE" | tee o.txt
+          grep -F "BEFORE stop: False" o.txt
+      - name: Thread start / stop stress (4 threads) and a very long move list
+        run: |
+          python tests/stress_stop.py "$EXE" 300 11 4 | tee o.txt
+          grep -E "OK" o.txt
+          python tests/longlist_test.py "$EXE" | tee o.txt
+          grep -F "alive: True" o.txt
+
+  build-from-source:
+    name: build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Network file (the network of 2.0 and 2.1; the assembler reads it from the current directory)
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.1/kestrel_net_2_0.bin"
+      - name: Compile src/kestrel_2_0.cpp
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_2_0.cpp
+          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_2_0.cpp; fi
+      - name: Depth-12 bench must give the number recorded in tests/BENCH
+        run: |
+          EXPECT=$(tr -d '\r\n ' < tests/BENCH)
+          OUT=$(./kestrel bench 12 | tail -n 1); echo "$OUT"
+          echo "$OUT" | grep -q "nodes $EXPECT "

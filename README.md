@@ -1,67 +1,68 @@
 # Kestrel
 
-> **Kestrel 2.1** is on the [Releases page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases): one large neural network (76 MB, inside the exe) instead of two small ones, about +37 Elo ahead of 1.1 and +48 ahead of 1.0 in my matches (see the release notes and `logs/fast_matches_2_0.txt`). 2.1 plays the same moves as 2.0 and only changes the default settings (Hash 256 MB, opening book and position learning off). The source is `src/kestrel_2_0.cpp` and needs the network file `kestrel_net.bin` from the release to build (see [docs/BUILDING.md](docs/BUILDING.md)). The text below describes Kestrel 1.1, the previous release.
+A UCI chess engine in one C++17 file, written by [Claude](https://www.anthropic.com/claude), an AI model made by Anthropic. Since version 2.0 it judges every position with one large neural network (39 million parameters) that is stored inside the executable.
 
-Kestrel is a UCI chess engine written in a single C++17 file (bitboards, alpha-beta search) with two embedded neural networks (king-bucketed inputs) blended with a hand-written evaluation.
-This is **Kestrel 1.1** (development version 40.1), a bug-fix release on **Kestrel 1.0** (40.0), the first release under the name Kestrel; the engine was called *Claude* up to version 39
-(the comment at the top of the source and the book file name still say Claude: the code is identical to Claude 39 apart from the engine name and the experience-file name).
+**[Download the latest release](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest)** (Windows, Linux, macOS) · [Web page](https://alon-berg.github.io/Kestrel-chess-engine/) · [Changelog](CHANGELOG.md) · [UCI options](docs/OPTIONS.md) · licence MIT
 
-* bucketed transposition table, multi-threaded search (up to 8 threads)
-* Chess960 (`UCI_Chess960`), Stockfish's repetition rule, `UCI_ShowWDL`, `UCI_AnalyseMode`, `MultiPV`, `go movetime` with `Move Overhead`
-* optional opening book and "experience" file (both off in analysis-style searches)
-* **not** available: Syzygy tablebases, NUMA / large pages; `register` and `debug` are ignored
+## Strength
+
+All numbers are my own, from fastchess matches on one laptop (1 thread, 32 MB hash, no book, no learning, the same openings for both sides). No rating list has tested Kestrel yet. Elo is Kestrel 2.0 against the older version, with fastchess's 95 % interval; 2.1 plays the same moves.
+
+| Time per game (base + increment, seconds) | against Kestrel 1.1 | against Kestrel 1.0 |
+|---|---|---|
+| 1 + 0.01 | +15 ± 32 | +28 ± 33 |
+| 2 + 0.02 | +13 ± 28 | +51 ± 31 |
+| 3 + 0.03 | +64 ± 29 | +31 ± 28 |
+| 5 + 0.1 | +38 ± 20 | +64 ± 21 |
+| 10 + 0.1 | +51 ± 30 | |
+| 20 + 0.5 | +41 ± 36 | |
+
+Pooled over all time controls: **+37 ± 11 Elo** against 1.1 (1,900 games) and **+48 ± 13** against 1.0 (1,500 games). At about 20 ms per move the large network is roughly level with 1.1: the network costs speed (about 830,000 nodes per second in the depth-12 bench on a performance core, roughly 30 % fewer than 1.1).
+Raw results: `logs/fast_matches_2_0.txt`, `logs/fast_matches_2_1.txt`.
+
+## What is inside
+
+* **Evaluation:** one network. 24,576 inputs per side (12 piece kinds × 64 squares × 32 horizontally mirrored king buckets), 1,536 integer accumulators per side kept up to date move by move, a pairwise-product activation, then 16 → 32 → 1 neurons with 8 output buckets chosen by the number of pieces. The second layer skips the zero inputs (about 90 % are zero); an AVX2 code path does the work on CPUs that have it, with exactly the same results as the plain code.
+* **Search:** iterative deepening with aspiration windows and principal-variation search; a bucketed transposition table; null-move pruning, reverse futility, ProbCut, internal iterative reduction, late-move reductions and pruning, futility and SEE pruning, singular extensions; killer, counter-move, history and continuation-history move ordering; a correction history for the static evaluation; quiescence search with SEE; Lazy SMP with up to 8 threads; Stockfish's repetition rule and a damping of the evaluation near the fifty-move limit.
+* **Features:** Chess960, `MultiPV` (up to 8), `UCI_ShowWDL`, `UCI_AnalyseMode`, `UCI_LimitStrength`, `go movetime` with `Move Overhead`, pondering, an optional opening book and an optional "experience" file (position learning), `EvalFile` to load another network of the same format.
+* **Not available:** Syzygy tablebases, NUMA / large pages.
+
+## Use it
+
+Unzip a release file and add `kestrel.exe` (or `kestrel`) to a UCI program such as Cute Chess, Arena, En Croissant or Lucas Chess. The x86-64-v3 builds need a CPU with AVX2 and BMI2 (most PCs since 2015); the v2 and generic builds work on older CPUs and are about 37 % slower. The defaults are `Hash` 256 MB, 1 thread, opening book and learning off; all options are in [docs/OPTIONS.md](docs/OPTIONS.md). The exe is about 88 MB because the network is inside it, and it is not code-signed (some virus scanners distrust big unsigned programs); the SHA-256 of every release file is in `SHA256.txt` on the release page.
 
 ## Build
 
-```
-cd src
-g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel_final.exe kestrel_1_1.cpp
-```
-
-`net_weights.h` and `net_weights2.h` are read by the compiler (they are `#include`d), so keep them next to the source. Put `claude_book.txt` next to the exe to use the book
-(the file keeps its old name; it is not read when `OwnBook` is false). `-march=x86-64-v3` needs a CPU with AVX2 (Intel Haswell / AMD Zen or newer).
-Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: see [docs/BUILDING.md](docs/BUILDING.md). Prebuilt binaries for Windows, Linux and macOS are published on the repository's Releases page (with their SHA-256);
-the Windows x86-64-v3 build is the one that went through the full test suite, the Linux and macOS builds have been compiled but not run (no such machine was available).
-
-## Kestrel 1.1: what changed
-
-Bug fixes only. The networks, the book and the search are unchanged (bench depth 12: 439,247 nodes; 797 of 800 fixed-node test searches give exactly the result of 1.0, the other three are K+N+N against K endings).
-
-* K+N+N against a bare king was evaluated as winning (about +3.4 pawns) although there is no forced mate; now 0 (the search still finds a mate the opponent allows).
-* Linux (musl) and macOS: search threads get 8 MB stacks (the default 128 KB / 512 KB is too small for a deep search).
-* Linux and macOS: the book and the experience file are found next to the real executable also when it is started by name through PATH or through a symlink.
-* The source builds for every CPU target without a patch (generic x86-64, v2, v3, ARM64); see [docs/BUILDING.md](docs/BUILDING.md).
-
-Found by 83 black-box UCI cases and 31 rules / protocol checks (`tests/audit_probe.py`, `tests/audit_sem.py`, logs in `logs/`) and by porting the source to Linux, macOS and ARM.
-
-## Measured strength of Kestrel 1.0 (relative to Claude 39; 1.1 has the same networks and search)
+The 76 MB network is not stored in git. Download `kestrel_net_2_0.bin` from the [release page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest), save it as `kestrel_net.bin` in the folder where you run the compiler (the assembler looks for it in the **current directory**) and compile:
 
 ```
-MEASURED - Kestrel 1.0 against Claude 39 (fastchess, 1 thread, Experience and OwnBook off; raw lines tests/v40_vs_39_raw.txt, tests/v40e_status.txt)
-  equal nodes       20,000 nodes per move, first 3,200 games (the games the release decision was made on): +11.5 +/- 7.9 Elo (W 1072  L 966  D 1162);
-                    second, independent 3,200 games (played afterwards): +8.8 +/- 8.0 Elo (W 1058  L 977  D 1165);
-                    pooled 6,400 games: +10.2 +/- 6.8 (95 % interval, plain win / draw / loss) - the interval is above 0.
-                    60,000 nodes per move, 1,600 games: +5.0 +/- 9.9 Elo (W 471  L 448  D 681).
-  timed games       3+0.03, 64 MB, 800 games: -12.2 +/- 16.2 (W 243  L 271  D 286); 5+0.1 (the tournament time control), 400 games: +34.0 +/- 21.4 (W 139  L 100  D 161).  Run AFTER the equal-node tests as a sanity check; NOT part of the release rule.
-  speed             pinned depth-14 bench (median of 7, tests/v40_bench_pin.txt): Kestrel 1.0 searches 1234988 nodes at 1500592 nodes/s, Claude 39 1110401 nodes at 1480534 nodes/s (same network size and evaluation code; the new nets give a slightly different tree).
-  tests             27-check verification passed (tests/v40_verify_log.txt); the long fuzz campaign and the extra tests of 38.1 / 39 were run again on the Kestrel build, see below.
+g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_2_0.cpp
 ```
 
-Kestrel 1.0 has not been rated by CCRL or any other list. The numbers above are equal-node and short timed matches played with fastchess on one laptop (1 thread, no book).
-Kestrel 1.0 is the third candidate of one line of work (the first two were rejected), so the first +11.5 is the best of three and probably somewhat flattering; see the second 3,200 games.
+Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: [docs/BUILDING.md](docs/BUILDING.md). `kestrel bench 12` must print `bench: nodes 1051844`.
 
-## How the networks were made
+## How it was tested
 
-Self-play of the previous engine, labels from Stockfish (depth 7 / 8) mixed with the game result (lambda 0.8), warm-started networks trained with Adam; see `docs/README_full.txt`.
-Stockfish is used only as a labelling teacher; no Stockfish code or network is included.
+* Two black-box audits of the UCI protocol and the rules (83 + 31 checks, `tests/audit_probe.py`, `tests/audit_sem.py`; python-chess is the rules oracle for the second one).
+* A 27-check verification with GCC and with clang AddressSanitizer + UBSan builds (also with 4 threads): accumulator self-test over 186,000 positions, perft, perft against python-chess, evaluation mirror symmetry, PV legality, UCI fuzzers, `go infinite` / `stop` races, MultiPV and ponder checks; plus a fuzz campaign of about 8,900 random command sequences. Logs are in `logs/`.
+* The Windows x86-64-v3 build ran all of this. The Linux and macOS builds are compiled and file-format-checked with Zig; the repository's GitHub Actions workflow downloads the shipped binaries and runs them on Linux, macOS and Windows machines (see `.github/workflows/`).
+
+## How the network was made
+
+About 238 million positions of the Lichess evaluation database (Stockfish evaluations, CC0) plus 12 million positions from Kestrel's own games labelled by Stockfish (depth 10), trained on a CPU with Adam. Stockfish was only the teacher; no Stockfish code or network is included. The training run overfitted after about 60 hours (the Lichess database had no more positions to offer), so the shipped network is the best snapshot (after about 49 hours of training); a fine-tune on fresh games lost 6.7 ± 11.2 Elo against it and was not used.
+
+## Versions
+
+2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
 
 ## Layout
 
-* `src/` generated source, networks, opening book
-* `docs/README_full.txt` full release notes (training rounds, rule used to accept a release, verification, fuzzing, features)
-* `logs/` result and test logs of the release (local user paths replaced by `<user>`)
+* `src/kestrel_2_0.cpp` the whole engine (the file name is from 2.0); `src/kestrel_1_1.cpp` and its network headers: Kestrel 1.1; `src/claude_book.txt` the optional opening book (the file keeps its old name)
+* `docs/` build notes, option reference, release notes of 1.x, the web page (`index.html`)
+* `logs/` result and test logs of the releases
+* `tests/` the two black-box audit scripts
 
-The patch chain that generates the source from the base file, the self-play / labelling / training scripts and the full test suite are part of the local release package and are not in this repository.
+The tools that generate the source, train the network and run the long test suites are not part of this repository.
 
 ## Licence
 
