@@ -39,10 +39,10 @@ The executables are not code-signed.
 * The pthread wrapper was compiled and run on Windows (winpthreads) with a deliberately tiny 128 KB main stack: 5 endgame / middlegame positions on 1 and 4 threads, `stop`, MultiPV.
 * Linux and macOS builds were compiled with Zig and checked for file format but **never run**: no Linux or macOS machine was available.
 
-## Kestrel 2.0 (pre-release)
+## Kestrel 2.0
 
 `src/kestrel_2_0.cpp` is the whole engine. The network (76 MB) is embedded with `.incbin "kestrel_net.bin"`, and the assembler looks that file up in the **current directory** (not next to the source).
-The network is not stored in the git history (76 MB per version): download `kestrel_net_2_0_beta1.bin` from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
+The network is not stored in the git history (76 MB per version): download `kestrel_net_2_0.bin` from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
 
 | Target | Compile with |
 |---|---|
@@ -51,4 +51,6 @@ The network is not stored in the git history (76 MB per version): download `kest
 | ARM64, macOS, Linux cross builds | as for 1.1 above with `kestrel_2_0.cpp` (compiled with Zig, never run) |
 
 The AVX2 evaluation code is compiled only when the compiler targets AVX2 (the last layers also need FMA); every other target uses plain loops with exactly the same results
-(bench depth 12 = 934,326 nodes with the beta network on all three Windows builds). The tools used to find and check the speed-ups are not part of the repository.
+(bench depth 12 = 934,326 nodes with the 2.0 network on all three Windows builds). The tools used to find and check the speed-ups are not part of the repository.
+
+Tested for 2.0 (Windows x86-64-v3, logs in `logs/`): the 27-check verification with AddressSanitizer / UBSan, also with 4 threads (`v2_0_verify_log.txt`), a fuzz campaign (`v2_0_fuzz_campaign_log.txt`), the two 1.1 audits (`audit_probe_2_0_output.txt`, 83 of 83; `audit_sem_2_0_output.txt`, 31 of 31) and the matches against 1.1 and 1.0 (`fast_matches_2_0.txt`). The Linux and macOS builds were compiled with Zig and never run.

@@ -1,0 +1,17 @@
+04:54 campaign start
+04:58 uci_fuzz GCC seed 101 x1500 :: sequences 1500 | failures 0 
+05:02 uci_fuzz GCC seed 102 x1500 :: sequences 1500 | failures 0 
+05:05 uci_fuzz GCC seed 103 x1500 :: sequences 1500 | failures 0 
+05:09 uci_fuzz GCC seed 104 x1500 :: sequences 1500 | failures 0 
+05:11 uci_fuzz 4 threads seed 301 x1000 :: sequences 1000 | failures 0 
+05:14 uci_fuzz ASan seed 201 x700 :: sequences 700 | failures 0 
+05:17 uci_fuzz ASan seed 202 x700 :: sequences 700 | failures 0 
+05:19 uci_fuzz 4 threads ASan seed 401 x500 :: sequences 500 | failures 0 
+05:20 fen_fuzz ASan 400 positions seed 777 :: positions tested 400 (engine refused 4 as impossible), problems 0 
+05:20 fen_fuzz ASan 150 positions seed 888 depth 7 :: positions tested 150 (engine refused 2 as impossible), problems 0 
+05:26 perft vs python-chess depth 4 :: positions 450 depth 4 mismatches 0 
+05:28 perft vs python-chess depth 3 (more) :: positions 4500 depth 3 mismatches 0 
+05:28 mirror symmetry 4000 :: positions 4000 | max |eval - mirrored eval| = 0 | above 12 cp: 0 | mean diff 0.00 
+05:28 pv_check GCC 1200 :: positions 945 | info lines checked 8893 | mate lines 1153 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0 
+05:29 pv_check 4 threads 600 :: positions 600 | info lines checked 5522 | mate lines 1052 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0 
+05:29 DONE

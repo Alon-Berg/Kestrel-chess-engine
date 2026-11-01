@@ -1,0 +1,22 @@
+Kestrel 2.0 (final; the network is snapshot 10 of the training run, the same network as 2.0 beta 1), x86-64-v3 build.
+fastchess, 1 thread, Hash 32 MB, Experience and OwnBook off, adjudication (resign: 4 moves beyond 600 cp; draw: from move 40, 6 moves within 15 cp), time control base+increment in seconds, 6 games at a time on one laptop, the same openings for both sides (colours swapped).
+Elo = 2.0 against the older Kestrel; the value after +/- is fastchess's 95 % interval; W / L / D from the point of view of 2.0.
+1+0.01, 2+0.02, 3+0.03 (300 games each), 10+0.1 (240 games) and 20+0.5 (160 games) were played with the development build of the same source before the version label was changed; 5+0.1 (600 games) with the packaged x86-64-v3 exe.
+
+against Kestrel 1.1
+  1+0.01   +15.06 +/- 31.59   W 122  L 109  D  69
+  2+0.02   +12.75 +/- 28.10   W 125  L 114  D  61
+  3+0.03   +64.42 +/- 28.73   W 144  L  89  D  67
+  5+0.1    +37.79 +/- 20.40   W 263  L 198  D 139
+  10+0.1   +51.03 +/- 30.04   W 104  L  69  D  67
+  20+0.5   +41.45 +/- 36.38   W  70  L  51  D  39
+against Kestrel 1.0
+  1+0.01   +27.85 +/- 32.74   W 131  L 107  D  62
+  2+0.02   +51.33 +/- 30.96   W 138  L  94  D  68
+  3+0.03   +31.35 +/- 27.53   W 128  L 101  D  71
+  5+0.1    +63.83 +/- 21.00   W 281  L 172  D 147
+pooled over all time controls (inverse-variance weights): +37.2 +/- 11.4 against 1.1 (1900 games), +47.7 +/- 13.4 against 1.0 (1500 games).
+
+EvalScale check (the same exe against itself, 600 games each at 5+0.1, no adjudication), Elo of the given value against the default 100: 60 -19.13 +/- 17.03, 80 +1.16 +/- 15.74, 125 +8.69 +/- 16.00, 160 -41.31 +/- 16.13.
+Equal-node check (10000 nodes, 1600 games) of a network fine-tuned for 10 hours on fresh Kestrel games against the shipped one: -6.73 +/- 11.20 (W 501, L 532, D 567); not used.
+depth-12 bench with the 2.0 network: 934,326 nodes on the x86-64-v3, x86-64-v2 and generic Windows builds; about 832,000 / 522,000 / 527,000 nodes per second (performance core, nothing else running).
