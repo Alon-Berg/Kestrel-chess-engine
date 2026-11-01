@@ -1,0 +1,5 @@
+Kestrel 2.1 = Kestrel 2.0 with other default settings (Hash 256 MB, OwnBook false, Experience false) and the version label "Kestrel 2.1"; the same network (kestrel_net_2_0.bin) and the same search.
+Identity check: 2.1 with its default settings against 2.0 with Hash 256 / OwnBook false / Experience false set explicitly; one thread, go nodes 300000, 18 positions: best move, depth, score, node count and pv identical in 18 of 18.
+Match: fastchess, 5+0.1, 6 games at a time, the same openings for both sides (colours swapped), 2.1 with no option given at all against 2.0 with those three options set explicitly: Elo -2.61 +/- 18.90 (W 110, L 113, D 177; 400 games, all terminations normal).
+Strength of 2.0 (2.1 plays the same moves): see fast_matches_2_0.txt.
+depth-12 bench: 1,051,844 nodes on the x86-64-v3, x86-64-v2 and generic Windows builds of 2.1 (2.0: 934,326; the difference comes from the new defaults: no book answers, larger hash).

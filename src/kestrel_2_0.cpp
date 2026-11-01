@@ -963,7 +963,7 @@ atomic<bool> goInfinite(false);
 long long softMs = 0, hardMs = 0, nodeLimit = 0;
 int maxDepthLimit = 64;
 chrono::steady_clock::time_point t0;
-int hashMB = 64;
+int hashMB = 256;                      // 2.1: default 256 MB (2.0: 64), as the CCRL testers prefer
 static long long moveOverhead = 5;
 vector<int> rootBan;
 long long elapsedMs() { return chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - t0).count(); }
@@ -5249,7 +5249,7 @@ static void clearAllTables() { S0::clearTables(); S1::clearTables(); S2::clearTa
 // ---------------------------------------------------------------- experience learning (persistent across games)
 struct ExpRec { int w = 0, d = 0, l = 0; };
 unordered_map<U64, unordered_map<int, ExpRec>> expDB;
-bool useExp = true;
+bool useExp = false;                  // 2.1: position learning off by default (2.0: on)
 string expPath = "kestrel_experience_v2.dat";
 #ifdef _WIN32
 // 37.1: file names are UTF-8 inside the engine; the wide-character API opens them (the ANSI code page cannot hold every folder name)
@@ -5346,7 +5346,7 @@ void saveGame() {
 // ---------------------------------------------------------------- opening book (built from the tournament games)
 struct BookEntry { string mv; int n; double pts; };
 unordered_map<string, vector<BookEntry>> bookDB;
-bool useBook = true;
+bool useBook = false;                 // 2.1: own opening book off by default (2.0: on)
 string bookPath = "claude_book.txt";
 int parseMove(const string& s);
 
@@ -5768,7 +5768,7 @@ int main(int argc, char** argv) {
         istringstream is(line); string cmd; is >> cmd;
         try {
         if (cmd == "uci") {
-            printf("id name Kestrel 2.0\nid author Claude\noption name Hash type spin default 64 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name NNBlend type spin default 70 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name OwnBook type check default true\noption name Net2Share type spin default 70 min 0 max 100\noption name UseNet2 type check default true\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\noption name CorrFlags type spin default 2 min 0 max 2\noption name Move Overhead type spin default 5 min 0 max 5000\noption name EvalCache type spin default 1 min 0 max 1\noption name V31Flags type spin default 0 min 0 max 255\noption name V31HistPrune type spin default 2500 min 0 max 20000\noption name V31CutR type spin default 1 min 0 max 3\noption name V31DE type spin default 20 min 0 max 200\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default true\noption name EvalFile type string default <internal>\noption name EvalScale type spin default 100 min 50 max 200\noption name ExperienceFile type string default kestrel_experience_v2.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\nuciok\n"); fflush(stdout);
+            printf("id name Kestrel 2.1\nid author Claude\noption name Hash type spin default 256 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name NNBlend type spin default 70 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name OwnBook type check default false\noption name Net2Share type spin default 70 min 0 max 100\noption name UseNet2 type check default true\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\noption name CorrFlags type spin default 2 min 0 max 2\noption name Move Overhead type spin default 5 min 0 max 5000\noption name EvalCache type spin default 1 min 0 max 1\noption name V31Flags type spin default 0 min 0 max 255\noption name V31HistPrune type spin default 2500 min 0 max 20000\noption name V31CutR type spin default 1 min 0 max 3\noption name V31DE type spin default 20 min 0 max 200\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default false\noption name EvalFile type string default <internal>\noption name EvalScale type spin default 100 min 50 max 200\noption name ExperienceFile type string default kestrel_experience_v2.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\nuciok\n"); fflush(stdout);
         } else if (cmd == "isready") { printf("readyok\n"); fflush(stdout); }
         else if (cmd == "ucinewgame") {
             { stopFlag = true; goInfinite = false; if (worker.joinable()) worker.join(); }
