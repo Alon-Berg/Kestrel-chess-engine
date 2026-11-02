@@ -1,6 +1,12 @@
 # Changelog
 
-## 2.2 (2026-11-02)
+## 2.3 (2026-11-02)
+
+Bug-fix release for two defects present since 2.0; strength and speed are unchanged (depth-12 bench still 1,051,844 nodes, same time; a 400-game match against 2.2 scored +7 +/- 21 Elo).
+**Evaluation overflow:** the second layer of the network summed 1,536 products in a 32-bit integer; for a few strongly negative neurons of the output bucket for 5 pieces or fewer the exact sum falls below -2^31, wrapped around, and the neuron was read as fully on instead of off (9 of 797,651 evaluations in the depth-12 bench; found by UBSan on Linux). The sums are now accumulated in float32; the AVX2 and the plain code still agree exactly.
+It also contains the option fix described under 2.2 (that version was tagged but not released).
+
+## 2.2 (2026-11-02, tag only)
 
 Bug-fix release: the same engine, network and moves as 2.1 (identical search on 18 positions; the depth-12 bench is still 1,051,844 nodes; a 400-game match against 2.1 scored +9 +/- 18 Elo).
 Kestrel 2.0 and 2.1 declared options of the 1.x engines with wrong defaults: `NNBlend` was declared with default 70 but the engine runs at 100, so a program that sent the declared defaults (for example after "reset to defaults") mixed the old hand-written evaluation into the search (-6 +/- 17 Elo in a 600-game match, but a different search). The obsolete and development options are no longer declared and release builds ignore `NNBlend`; `tests/options_test.py` guards against this kind of bug.

@@ -260,11 +260,11 @@ static bool nnLoadFile(const string& path) {
 }
 #if defined(__AVX2__) && defined(__FMA__)
 // layers 3 and 4 from the integer layer-2 sums: z2 -> u = [clip(z2), clip(z2)^2] -> z3 = b3 + u W3 (four registers, summed in the order j = 0..31) -> out (sequential fused chain)
-static inline int netTail(const int32_t* acc32, int ob, float sc) {
+static inline int netTail(const float* accf, int ob, float sc) {
     const __m256 zero = _mm256_setzero_ps(), one = _mm256_set1_ps(1.0f), scv = _mm256_set1_ps(sc);
     alignas(32) float u[2 * NN_L2];
     for (int h = 0; h < 2; h++) {
-        const __m256 z = _mm256_fmadd_ps(_mm256_cvtepi32_ps(_mm256_load_si256((const __m256i*)(acc32 + 8 * h))), scv, _mm256_loadu_ps(nnHb2 + ob * NN_L2 + 8 * h));
+        const __m256 z = _mm256_fmadd_ps(_mm256_load_ps(accf + 8 * h), scv, _mm256_loadu_ps(nnHb2 + ob * NN_L2 + 8 * h));
         const __m256 a = _mm256_min_ps(_mm256_max_ps(z, zero), one);
         _mm256_store_ps(u + 8 * h, a); _mm256_store_ps(u + NN_L2 + 8 * h, _mm256_mul_ps(a, a));
     }
@@ -286,6 +286,10 @@ static inline int netTail(const int32_t* acc32, int ob, float sc) {
 }
 #endif
 // the network output for the side to move, in centipawns: S / O = accumulators of the side to move / of the other side
+#ifdef OVFCHECK2
+static long long ovfN = 0, ovfBad = 0, ovfBeyond = 0;
+struct OvfPrinter { ~OvfPrinter() { fprintf(stderr, "OVF2: neuron sums %lld, float sum differs from the exact 64-bit sum: %lld, exact sums beyond int32 (handled): %lld\n", ovfN, ovfBad, ovfBeyond); } } ovfPrinter;
+#endif
 static int netEval(const int16_t* S, const int16_t* O, int npieces) {
 #if defined(__AVX2__)
     alignas(32) int16_t x[NN_H];                 // pairwise products of the clipped accumulators, at most 181 * 181 = 32761 (exact in int16)
@@ -313,31 +317,31 @@ static int netEval(const int16_t* S, const int16_t* O, int npieces) {
     const int ob = npieces <= 2 ? 0 : std::min(NN_NOB - 1, (npieces - 2) / 4);
     const float sc = 1.0f / ((float)(NN_QA * NN_QA) * NN_W2S);
     const int16_t* wb = &nnW2pm[ob][0][0][0];
-    __m256i a0 = _mm256_setzero_si256(), a1 = a0, b0 = a0, b1 = a0;
+    __m256 a0 = _mm256_setzero_ps(), a1 = a0, b0 = a0, b1 = a0;           // 2.3: float accumulators (an int32 sum can overflow for a strongly negative neuron)
     int c = 0;
     for (; c + 1 < cnt; c += 2) {
         const int j0 = nz[c], j1 = nz[c + 1]; int t0, t1;
         memcpy(&t0, x + 2 * j0, 4); memcpy(&t1, x + 2 * j1, 4);
         const __m256i v0 = _mm256_set1_epi32(t0), v1 = _mm256_set1_epi32(t1);
         const __m256i* w0 = (const __m256i*)(wb + j0 * 32); const __m256i* w1 = (const __m256i*)(wb + j1 * 32);
-        a0 = _mm256_add_epi32(a0, _mm256_madd_epi16(v0, _mm256_load_si256(w0)));
-        a1 = _mm256_add_epi32(a1, _mm256_madd_epi16(v0, _mm256_load_si256(w0 + 1)));
-        b0 = _mm256_add_epi32(b0, _mm256_madd_epi16(v1, _mm256_load_si256(w1)));
-        b1 = _mm256_add_epi32(b1, _mm256_madd_epi16(v1, _mm256_load_si256(w1 + 1)));
+        a0 = _mm256_add_ps(a0, _mm256_cvtepi32_ps(_mm256_madd_epi16(v0, _mm256_load_si256(w0))));
+        a1 = _mm256_add_ps(a1, _mm256_cvtepi32_ps(_mm256_madd_epi16(v0, _mm256_load_si256(w0 + 1))));
+        b0 = _mm256_add_ps(b0, _mm256_cvtepi32_ps(_mm256_madd_epi16(v1, _mm256_load_si256(w1))));
+        b1 = _mm256_add_ps(b1, _mm256_cvtepi32_ps(_mm256_madd_epi16(v1, _mm256_load_si256(w1 + 1))));
     }
     if (c < cnt) {
         const int j0 = nz[c]; int t0; memcpy(&t0, x + 2 * j0, 4);
         const __m256i v0 = _mm256_set1_epi32(t0); const __m256i* w0 = (const __m256i*)(wb + j0 * 32);
-        a0 = _mm256_add_epi32(a0, _mm256_madd_epi16(v0, _mm256_load_si256(w0)));
-        a1 = _mm256_add_epi32(a1, _mm256_madd_epi16(v0, _mm256_load_si256(w0 + 1)));
+        a0 = _mm256_add_ps(a0, _mm256_cvtepi32_ps(_mm256_madd_epi16(v0, _mm256_load_si256(w0))));
+        a1 = _mm256_add_ps(a1, _mm256_cvtepi32_ps(_mm256_madd_epi16(v0, _mm256_load_si256(w0 + 1))));
     }
-    alignas(32) int32_t acc32[NN_L2];
-    _mm256_store_si256((__m256i*)acc32, _mm256_add_epi32(a0, b0)); _mm256_store_si256((__m256i*)(acc32 + 8), _mm256_add_epi32(a1, b1));
+    alignas(32) float accf[NN_L2];
+    _mm256_store_ps(accf, _mm256_add_ps(a0, b0)); _mm256_store_ps(accf + 8, _mm256_add_ps(a1, b1));
 #if defined(__FMA__)
-    return netTail(acc32, ob, sc);
+    return netTail(accf, ob, sc);
 #else
     float z2[NN_L2];
-    for (int k = 0; k < NN_L2; k++) z2[k] = nnHb2[ob * NN_L2 + k] + (float)acc32[k] * sc;
+    for (int k = 0; k < NN_L2; k++) z2[k] = nnHb2[ob * NN_L2 + k] + accf[k] * sc;
 #endif
 #else
     alignas(64) int16_t x[NN_H];
@@ -348,11 +352,16 @@ static int netEval(const int16_t* S, const int16_t* O, int npieces) {
     }
     const int ob = npieces <= 2 ? 0 : std::min(NN_NOB - 1, (npieces - 2) / 4);
     const float sc = 1.0f / ((float)(NN_QA * NN_QA) * NN_W2S);
+    uint16_t nzp[NN_H2]; int cnt = 0;                      // 2.3: the pairs (x[2j], x[2j + 1]) that are not both zero, in increasing order (the AVX2 code lists them the same way)
+    for (int j = 0; j < NN_H2; j++) if (x[2 * j] | x[2 * j + 1]) nzp[cnt++] = (uint16_t)j;
     float z2[NN_L2];
     for (int k = 0; k < NN_L2; k++) {
-        const int16_t* w = nnW2q[ob][k]; int32_t acc = 0;
-        for (int i = 0; i < NN_H; i++) acc += (int32_t)x[i] * w[i];
-        z2[k] = nnHb2[ob * NN_L2 + k] + (float)acc * sc;
+        const int16_t* w = nnW2q[ob][k]; float fa = 0.0f, fb = 0.0f;       // float sums in the order of the AVX2 code (two streams): a 32-bit integer sum can overflow for a strongly negative neuron
+        for (int c = 0; c < cnt; c++) { const int j = nzp[c]; const int t = (int)x[2 * j] * w[2 * j] + (int)x[2 * j + 1] * w[2 * j + 1]; if (c & 1) fb += (float)t; else fa += (float)t; }
+#ifdef OVFCHECK2
+        { int64_t a64 = 0; for (int i = 0; i < NN_H; i++) a64 += (int64_t)x[i] * w[i]; const double ex = (double)a64, got = (double)(fa + fb); ovfN++; if (fabs(ex - got) > 1e-6 * fabs(ex) + 64.0) ovfBad++; if (a64 > INT32_MAX || a64 < INT32_MIN) ovfBeyond++; }
+#endif
+        z2[k] = nnHb2[ob * NN_L2 + k] + (fa + fb) * sc;
     }
 #endif
 #if !(defined(__AVX2__) && defined(__FMA__))
@@ -6001,7 +6010,7 @@ int main(int argc, char** argv) {
         istringstream is(line); string cmd; is >> cmd;
         try {
         if (cmd == "uci") {
-            printf("id name Kestrel 2.2\nid author Claude\noption name Hash type spin default 256 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name OwnBook type check default false\noption name Move Overhead type spin default 5 min 0 max 5000\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default false\noption name EvalFile type string default <internal>\noption name EvalScale type spin default 100 min 50 max 200\noption name ExperienceFile type string default kestrel_experience_v2.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\n");
+            printf("id name Kestrel 2.3\nid author Claude\noption name Hash type spin default 256 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name OwnBook type check default false\noption name Move Overhead type spin default 5 min 0 max 5000\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default false\noption name EvalFile type string default <internal>\noption name EvalScale type spin default 100 min 50 max 200\noption name ExperienceFile type string default kestrel_experience_v2.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\n");
 #ifdef KESTREL_TUNE_OPTIONS
             printf("option name K22Flags type spin default %d min 0 max 255\n", k22Flags);
             printf("option name NNBlend type spin default 100 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\n"

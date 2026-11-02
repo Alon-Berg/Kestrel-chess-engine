@@ -1,4 +1,4 @@
-# UCI options of Kestrel 2.2
+# UCI options of Kestrel 2.3
 
 Add the executable to any UCI program (Cute Chess, Arena, En Croissant, Lucas Chess, fastchess, ...). The options below are what `uci` lists; every other option name of earlier versions is accepted and ignored.
 
@@ -26,5 +26,5 @@ Add the executable to any UCI program (Cute Chess, Arena, En Croissant, Lucas Ch
 
 * There is no Syzygy tablebase support.
 * `go` understands `wtime btime winc binc movestogo depth nodes movetime mate infinite ponder searchmoves`.
-* Versions 2.0 and 2.1 declared a few options that no longer do anything (`NNBlend`, `Net2Share`, `UseNet2`) and development options with the defaults of 1.x. `NNBlend` was declared with default 70 although the engine runs at 100, so a program that sent the declared defaults mixed the old hand-written evaluation into the search. Since 2.2 these options are not declared any more and the release builds ignore them (`tests/options_test.py` checks that sending every declared default changes nothing).
+* Versions 2.0 and 2.1 declared a few options that no longer do anything (`NNBlend`, `Net2Share`, `UseNet2`) and development options with the defaults of 1.x. `NNBlend` was declared with default 70 although the engine runs at 100, so a program that sent the declared defaults mixed the old hand-written evaluation into the search. Since 2.2 (and so in 2.3) these options are not declared any more and the release builds ignore them (`tests/options_test.py` checks that sending every declared default changes nothing).
 * Defaults changed in 2.1 for chess-engine testers: `Hash` 256 MB, `OwnBook` and `Experience` off.

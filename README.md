@@ -8,7 +8,7 @@ A UCI chess engine in one C++17 file, written by [Claude](https://www.anthropic.
 
 ## Strength
 
-All numbers are my own, from fastchess matches on one laptop (1 thread, 32 MB hash, no book, no learning, the same openings for both sides). No rating list has tested Kestrel yet. Elo is Kestrel 2.0 against the older version, with fastchess's 95 % interval; 2.1 and 2.2 play the same moves.
+All numbers are my own, from fastchess matches on one laptop (1 thread, 32 MB hash, no book, no learning, the same openings for both sides). No rating list has tested Kestrel yet. Elo is Kestrel 2.0 against the older version, with fastchess's 95 % interval; 2.1 and 2.2 play the same moves, and 2.3 differs only in rare endgame evaluations.
 
 | Time per game (base + increment, seconds) | against Kestrel 1.1 | against Kestrel 1.0 |
 |---|---|---|
@@ -55,7 +55,7 @@ About 238 million positions of the Lichess evaluation database (Stockfish evalua
 
 ## Versions
 
-2.2 (bug fix: obsolete options with wrong defaults removed), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
+2.3 (bug fixes: an evaluation overflow in endgames; obsolete options with wrong defaults removed, which was 2.2), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
 
 ## Layout
 
