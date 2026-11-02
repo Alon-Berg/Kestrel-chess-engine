@@ -103,6 +103,11 @@ jobs:
         run: |
           python tests/test_uci_features.py "$EXE" | tee o.txt
           grep -E " 0 failed" o.txt
+      - name: "Declared option defaults must not change the engine (2.0 and 2.1 fail this because of NNBlend)"
+        if: ${{ env.TAG != 'v2.0' && env.TAG != 'v2.1' }}
+        run: |
+          python tests/options_test.py "$EXE" | tee o.txt
+          grep -F " 0 differences" o.txt
       - name: Interoperability with python-chess's UCI client
         run: |
           python tests/interop_test.py "$EXE" | tee o.txt
@@ -125,6 +130,37 @@ jobs:
           grep -E "OK" o.txt
           python tests/longlist_test.py "$EXE" | tee o.txt
           grep -F "alive: True" o.txt
+
+  sanitizers:
+    name: AddressSanitizer + UBSan on Linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    continue-on-error: true
+    env:
+      ASAN_OPTIONS: "detect_leaks=0:halt_on_error=1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess
+      - name: Network file
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.1/kestrel_net_2_0.bin"
+      - name: Compile with clang, AddressSanitizer and UBSan
+        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_2_0.cpp
+      - name: Accumulator self-test, perft and bench under the sanitizers
+        run: |
+          ./kestrel_asan acctest | tee o.txt
+          grep -q "mismatches 0" o.txt
+          ./kestrel_asan perft | tee o.txt
+          test "$(grep -c '^OK' o.txt)" = "6"
+          EXPECT=$(tr -d '\r\n ' < tests/BENCH)
+          OUT=$(./kestrel_asan bench 12 | tail -n 1); echo "$OUT"
+          echo "$OUT" | grep -q "nodes $EXPECT "
+      - name: UCI fuzzer under the sanitizers
+        run: |
+          python tests/uci_fuzz.py ./kestrel_asan 200 7 | tee o.txt
+          grep -q "failures 0" o.txt
 
   build-from-source:
     name: build on ${{ matrix.os }}

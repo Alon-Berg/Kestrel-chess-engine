@@ -1,12 +1,14 @@
 # Kestrel
 
+[![verify-release](https://github.com/Alon-Berg/Kestrel-chess-engine/actions/workflows/verify-release.yml/badge.svg)](https://github.com/Alon-Berg/Kestrel-chess-engine/actions/workflows/verify-release.yml)
+
 A UCI chess engine in one C++17 file, written by [Claude](https://www.anthropic.com/claude), an AI model made by Anthropic. Since version 2.0 it judges every position with one large neural network (39 million parameters) that is stored inside the executable.
 
 **[Download the latest release](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest)** (Windows, Linux, macOS) · [Web page](https://alon-berg.github.io/Kestrel-chess-engine/) · [Changelog](CHANGELOG.md) · [UCI options](docs/OPTIONS.md) · licence MIT
 
 ## Strength
 
-All numbers are my own, from fastchess matches on one laptop (1 thread, 32 MB hash, no book, no learning, the same openings for both sides). No rating list has tested Kestrel yet. Elo is Kestrel 2.0 against the older version, with fastchess's 95 % interval; 2.1 plays the same moves.
+All numbers are my own, from fastchess matches on one laptop (1 thread, 32 MB hash, no book, no learning, the same openings for both sides). No rating list has tested Kestrel yet. Elo is Kestrel 2.0 against the older version, with fastchess's 95 % interval; 2.1 and 2.2 play the same moves.
 
 | Time per game (base + increment, seconds) | against Kestrel 1.1 | against Kestrel 1.0 |
 |---|---|---|
@@ -45,7 +47,7 @@ Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: [docs/BUILDING.md](d
 
 * Two black-box audits of the UCI protocol and the rules (83 + 31 checks, `tests/audit_probe.py`, `tests/audit_sem.py`; python-chess is the rules oracle for the second one).
 * A 27-check verification with GCC and with clang AddressSanitizer + UBSan builds (also with 4 threads): accumulator self-test over 186,000 positions, perft, perft against python-chess, evaluation mirror symmetry, PV legality, UCI fuzzers, `go infinite` / `stop` races, MultiPV and ponder checks; plus a fuzz campaign of about 8,900 random command sequences. Logs are in `logs/`.
-* The Windows x86-64-v3 build ran all of this. The Linux and macOS builds are compiled and file-format-checked with Zig; the repository's GitHub Actions workflow downloads the shipped binaries and runs them on Linux, macOS and Windows machines (see `.github/workflows/`).
+* The Windows x86-64-v3 build ran all of this. On 2026-11-01 the repository's GitHub Actions workflow ([`verify-release.yml`](.github/workflows/verify-release.yml)) ran the published 2.1 files on GitHub's machines: Linux x86-64 (v3, v2 and generic), Linux ARM64, macOS (Apple silicon) and Windows all gave the recorded depth-12 bench (1,051,844 nodes: the same search on every platform) and answered a UCI session; the Linux x86-64-v3 build also passed both audits and the test scripts in `tests/`, and the source compiled with GCC on Linux and with Apple's clang on macOS to the same bench. The macOS Intel build has not been run.
 
 ## How the network was made
 
@@ -53,14 +55,14 @@ About 238 million positions of the Lichess evaluation database (Stockfish evalua
 
 ## Versions
 
-2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
+2.2 (bug fix: obsolete options with wrong defaults removed), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
 
 ## Layout
 
 * `src/kestrel_2_0.cpp` the whole engine (the file name is from 2.0); `src/kestrel_1_1.cpp` and its network headers: Kestrel 1.1; `src/claude_book.txt` the optional opening book (the file keeps its old name)
-* `docs/` build notes, option reference, release notes of 1.x, the web page (`index.html`)
+* `docs/` build notes, option reference, an architecture guide, release notes of 1.x, the web page (`index.html`)
 * `logs/` result and test logs of the releases
-* `tests/` the two black-box audit scripts
+* `tests/` black-box test scripts for any Kestrel executable (see `tests/README.md`)
 
 The tools that generate the source, train the network and run the long test suites are not part of this repository.
 

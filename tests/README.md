@@ -11,6 +11,7 @@ Black-box tests: every script takes the path of a Kestrel executable and talks t
 | `clock_limit_test.py <exe>` | a clock next to a depth or node limit must be obeyed (all limits of a `go` apply at once) |
 | `test_uci_features.py <exe>` | MultiPV, ponder, Clear Hash, UCI_LimitStrength, threads |
 | `interop_test.py <exe>` | the engine driven by python-chess's own UCI client (ponder hits and misses, Chess960, new games) |
+| `options_test.py <exe>` | sends the declared default of every option (what a "reset to defaults" does) and requires the search to be identical to one with no option sent; Kestrel 2.0 and 2.1 fail it (they declared `NNBlend` with default 70 but ran at 100) |
 | `uci_fuzz.py <exe> <sequences> <seed>` | random command sequences; the engine must survive and answer |
 | `race_test.py <exe> <runs>`, `infinite_test.py <exe>` | `go infinite` followed by an immediate `stop`; `go infinite` must wait for `stop` |
 | `stress_stop.py <exe> <iterations> <seed> <threads>` | random go / stop / position / ucinewgame / setoption bursts with millisecond gaps |

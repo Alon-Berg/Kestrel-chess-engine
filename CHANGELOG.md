@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2 (2026-11-02)
+
+Bug-fix release: the same engine, network and moves as 2.1 (identical search on 18 positions; the depth-12 bench is still 1,051,844 nodes; a 400-game match against 2.1 scored +9 +/- 18 Elo).
+Kestrel 2.0 and 2.1 declared options of the 1.x engines with wrong defaults: `NNBlend` was declared with default 70 but the engine runs at 100, so a program that sent the declared defaults (for example after "reset to defaults") mixed the old hand-written evaluation into the search (-6 +/- 17 Elo in a 600-game match, but a different search). The obsolete and development options are no longer declared and release builds ignore `NNBlend`; `tests/options_test.py` guards against this kind of bug.
+The source also contains new search ideas and the search constants as switched-off options (`K22Flags`, `T_...`, declared only in development builds); none of the ideas helped in 1,200 to 4,000-game tests, see `logs/fast_matches_2_2.txt`.
+Added since 2.1 (not part of the binaries): the README for 2.x, `docs/OPTIONS.md`, `docs/ARCHITECTURE.md`, portable test scripts in `tests/` and a GitHub Actions workflow that runs the published binaries on Linux, macOS and Windows.
+
 ## 2.1 (2026-11-01)
 
 Same engine, network and search as 2.0 (checked: identical best move, depth, score, node count and pv on 18 positions; a 400-game match of 2.1 on its defaults against 2.0 with the same settings set by hand scored -3 +/- 19 Elo).

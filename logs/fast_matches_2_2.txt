@@ -1,0 +1,11 @@
+Kestrel 2.2 = Kestrel 2.1 with the obsolete and development options removed from the `uci` output (the release builds ignore NNBlend) and the new search ideas and search constants added as switched-off options; the same network and the same moves.
+Identity check: 2.2 against 2.1, both with their default settings; one thread, go nodes 300000, 18 positions: best move, depth, score, node count and pv identical in 18 of 18.
+Options test (tests/options_test.py): sends the declared default of every option. 2.1: 28 options declared, the search differs on 5 of 5 positions (NNBlend declared with default 70, runs at 100). 2.2: 17 options declared (16 with a default), 0 differences.
+Match: fastchess, 5+0.1, 6 games at a time, the same openings for both sides (colours swapped): 2.2 against 2.1: Elo +8.69 +/- 17.84 (W 101, L 91, D 208; 400 games, all terminations normal).
+Cost of the old NNBlend default: 2.1 with NNBlend 70 against 2.1 at its real default, 3+0.03, 600 games: -6.37 +/- 16.95 (W 182, L 193, D 225).
+Ideas that did not help (3+0.03, one thread, the same engine with and without the change; Elo of the change, 95 % interval):
+  capture history + 4-ply continuation history + LMR tweaks + capture futility + effort-based time management (K22Flags 31): -7.7 +/- 10.4 (1266 games, SPRT stopped)
+  effort-based time management alone (K22Flags 16): -3.1 +/- 8.0 (2234 games)
+  V31Flags 43 (bits 1, 2, 8, 32): +8.1 +/- 7.7 (3000 games), confirmation with another seed -1.8 +/- 6.7 (4000 games); V31Flags 8: -0.4 +/- 7.8; V31Flags 32: +3.5 +/- 7.7
+  T_LmrDv 190: -4.6 +/- 8.8 (1746); T_LmrDv 250: -1.7 +/- 6.9 (2900); T_RfpM 65: -5.0 +/- 9.1 (1726); T_SingD 6: +1.5 +/- 6.9 (3000)
+depth-12 bench: 1,051,844 nodes on the x86-64-v3, x86-64-v2 and generic Windows builds (unchanged from 2.1); five runs of the x86-64-v3 build: 2.1 757-827 ms, 2.2 754-815 ms.

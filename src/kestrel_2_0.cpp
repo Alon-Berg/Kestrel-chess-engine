@@ -1029,6 +1029,18 @@ static inline void ttWrite(U64 hash, int move, int score, int depth, int flag, i
 }
 static int corrFlags = 2;
 static int v31Flags = 0, v31HP = 2500, v31CutR = 1, v31DE = 20;
+// ---- 2.2: new search features (bits of K22Flags) and the search constants as options (the defaults are the values the search has always used)
+static int k22Flags = 0;
+static int tRazor = 300, tRfpD = 7, tRfpM = 80, tNmpB = 3, tNmpD = 4, tNmpE = 200, tPcD = 5, tPcM = 170, tIirD = 4, tLmpB = 3, tLmpD = 6, tFutD = 7, tFutB = 90, tFutM = 90, tSeeD = 6, tSeeQ = 30, tSeeC = 90,
+           tSingD = 7, tSingTD = 3, tSingM = 2, tLmrB = 80, tLmrDv = 220, tLmrH = 6000, tHbM = 10, tHbC = 400, tAsp = 25, tQsD = 200, tCapFutB = 150, tCapFutM = 90, tTmStab = 70, tTmLow = 130;
+struct K22Tun { const char* name; int* v; int def, lo, hi; };
+static const K22Tun k22Tun[] = {
+    {"T_Razor", &tRazor, 300, 50, 800}, {"T_RfpD", &tRfpD, 7, 2, 12}, {"T_RfpM", &tRfpM, 80, 20, 200}, {"T_NmpB", &tNmpB, 3, 1, 6}, {"T_NmpD", &tNmpD, 4, 2, 8}, {"T_NmpE", &tNmpE, 200, 50, 600},
+    {"T_PcD", &tPcD, 5, 3, 10}, {"T_PcM", &tPcM, 170, 50, 400}, {"T_IirD", &tIirD, 4, 2, 10}, {"T_LmpB", &tLmpB, 3, 0, 10}, {"T_LmpD", &tLmpD, 6, 2, 12}, {"T_FutD", &tFutD, 7, 2, 12}, {"T_FutB", &tFutB, 90, 0, 300},
+    {"T_FutM", &tFutM, 90, 20, 250}, {"T_SeeD", &tSeeD, 6, 2, 12}, {"T_SeeQ", &tSeeQ, 30, 5, 100}, {"T_SeeC", &tSeeC, 90, 20, 250}, {"T_SingD", &tSingD, 7, 4, 12}, {"T_SingTD", &tSingTD, 3, 1, 6}, {"T_SingM", &tSingM, 2, 1, 6},
+    {"T_LmrB", &tLmrB, 80, 0, 200}, {"T_LmrDv", &tLmrDv, 220, 100, 400}, {"T_LmrH", &tLmrH, 6000, 1500, 20000}, {"T_HbM", &tHbM, 10, 3, 30}, {"T_HbC", &tHbC, 400, 100, 1600}, {"T_Asp", &tAsp, 25, 5, 80}, {"T_QsD", &tQsD, 200, 50, 500},
+    {"T_CapFutB", &tCapFutB, 150, 0, 500}, {"T_CapFutM", &tCapFutM, 90, 20, 250}, {"T_TmStab", &tTmStab, 70, 30, 100}, {"T_TmLow", &tTmLow, 130, 100, 250} };
+static void initLmr() { for (int d = 1; d < 64; d++) for (int m = 1; m < 64; m++) lmrT[d][m] = (int)(tLmrB / 100.0 + log((double)d) * log((double)m) / (tLmrDv / 100.0)); }
 static int qsTT = 1;
 static int evalCache = 1;
 
@@ -1188,6 +1200,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -1246,6 +1261,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -1255,6 +1271,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -1298,7 +1315,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -1368,12 +1385,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -1381,8 +1398,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -1403,13 +1420,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -1424,16 +1441,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -1447,6 +1468,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -1459,20 +1481,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -1484,7 +1513,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -1495,6 +1524,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -1531,6 +1569,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -1543,7 +1582,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -1714,6 +1753,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -1772,6 +1814,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -1781,6 +1824,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -1824,7 +1868,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -1894,12 +1938,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -1907,8 +1951,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -1929,13 +1973,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -1950,16 +1994,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -1973,6 +2021,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -1985,20 +2034,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -2010,7 +2066,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -2021,6 +2077,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -2057,6 +2122,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -2069,7 +2135,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -2240,6 +2306,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -2298,6 +2367,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -2307,6 +2377,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -2350,7 +2421,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -2420,12 +2491,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -2433,8 +2504,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -2455,13 +2526,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -2476,16 +2547,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -2499,6 +2574,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -2511,20 +2587,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -2536,7 +2619,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -2547,6 +2630,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -2583,6 +2675,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -2595,7 +2688,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -2766,6 +2859,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -2824,6 +2920,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -2833,6 +2930,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -2876,7 +2974,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -2946,12 +3044,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -2959,8 +3057,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -2981,13 +3079,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -3002,16 +3100,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -3025,6 +3127,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -3037,20 +3140,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -3062,7 +3172,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -3073,6 +3183,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -3109,6 +3228,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -3121,7 +3241,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -3292,6 +3412,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -3350,6 +3473,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -3359,6 +3483,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -3402,7 +3527,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -3472,12 +3597,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -3485,8 +3610,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -3507,13 +3632,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -3528,16 +3653,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -3551,6 +3680,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -3563,20 +3693,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -3588,7 +3725,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -3599,6 +3736,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -3635,6 +3781,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -3647,7 +3794,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -3818,6 +3965,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -3876,6 +4026,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -3885,6 +4036,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -3928,7 +4080,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -3998,12 +4150,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -4011,8 +4163,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -4033,13 +4185,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -4054,16 +4206,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -4077,6 +4233,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -4089,20 +4246,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -4114,7 +4278,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -4125,6 +4289,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -4161,6 +4334,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -4173,7 +4347,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -4344,6 +4518,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -4402,6 +4579,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -4411,6 +4589,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -4454,7 +4633,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -4524,12 +4703,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -4537,8 +4716,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -4559,13 +4738,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -4580,16 +4759,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -4603,6 +4786,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -4615,20 +4799,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -4640,7 +4831,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -4651,6 +4842,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -4687,6 +4887,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -4699,7 +4900,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -4870,6 +5071,9 @@ const int PV_[6] = {100, 320, 330, 500, 900, 20000};
 const int SEEV[6] = {100, 320, 330, 500, 900, 20000};
 short contHist[768][768];
 int counterMv[768];
+short capHist[768][6];            // 2.2: capture history [moved piece * 64 + target][captured kind]
+short contHist4[768][768];        // 2.2: continuation history 4 plies back
+long long rootEff[4096];          // 2.2: nodes spent below each root move (by from/to) in the current iteration
 int pieceAt[MAXPLY + 4], toAt[MAXPLY + 4], evalAt[MAXPLY + 4];
 int corrHist[2][16384];
 int corrNP[2][2][16384];
@@ -4928,6 +5132,7 @@ static inline int quietScore(const Pos& p, int m, int ply) {
     int s = history[p.side][from][to];
     if (ply >= 1 && pieceAt[ply - 1] >= 0) s += contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + to];
     if (ply >= 2 && pieceAt[ply - 2] >= 0) s += contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + to] / 2;
+    if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) s += contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + to] / 2;
     return s;
 }
 
@@ -4937,6 +5142,7 @@ int moveScore(const Pos& p, int m, int ttMove, int ply) {
     if (m & CAP) {
         int victim = (m & EPF) ? 0 : p.B[to] % 6;
         int mvv = PV_[victim] * 10 - PV_[p.B[from] % 6] / 10 + (promo ? 5000 : 0);
+        if (k22Flags & 1) mvv += capHist[p.B[from] * 64 + to][victim] / 8;
         return (promo || seeGE(p, m, 0)) ? 1000000 + mvv : -200000 + mvv;
     }
     if (promo) return 900000 + promo;
@@ -4980,7 +5186,7 @@ int qsearch(int alpha, int beta, int ply) {
         int m = mv[i];
         if (!inChk && (m & CAP) && !((m >> 12) & 7)) {
             int victim = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
-            if (stand + PV_[victim] + 200 < alpha) continue;
+            if (stand + PV_[victim] + tQsD < alpha) continue;
             if (sc[i] < 0) continue;  // losing capture by SEE
         }
         pos.make(m);
@@ -5050,12 +5256,12 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
     if ((v31Flags & 2) && !inChk && ttFlag != TT_NONE && abs(ttScore) < MATE_BOUND &&
         (ttFlag == TT_EXACT || (ttFlag == TT_LOWER && ttScore > eval) || (ttFlag == TT_UPPER && ttScore < eval))) peval = ttScore;
     if (!pv && !inChk && !excluded) {
-        if (depth <= 2 && peval + 300 < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
-        if (depth <= 7 && peval - 80 * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
+        if (depth <= 2 && peval + tRazor < alpha) { int q = qsearch(alpha, beta, ply); if (q <= alpha) return q; }
+        if (depth <= tRfpD && peval - tRfpM * (depth - improving) >= beta && beta > -MATE_BOUND && peval < MATE_BOUND) return (peval + beta) / 2;
         bool nonPawn = pos.Occ[us] & ~(pos.P[us * 6] | pos.P[us * 6 + 5]);
         if (allowNull && depth >= 3 && peval >= beta && nonPawn &&
             !((v31Flags & 32) && ttFlag == TT_UPPER && ttScore < beta && ttDepth >= depth - 3)) {
-            int R = 3 + depth / 4 + min((peval - beta) / 200, 2);
+            int R = tNmpB + depth / tNmpD + min((peval - beta) / tNmpE, 2);
             pieceAt[ply] = -1;
             pos.makeNull();
             int s = -search(depth - 1 - R, -beta, -beta + 1, ply + 1, false, 0, !cutNode);
@@ -5063,8 +5269,8 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             if (stopFlag) return 0;
             if (s >= beta) return s >= MATE_BOUND ? beta : s;
         }
-        if (depth >= 5 && abs(beta) < MATE_BOUND) {
-            int pb = beta + 170;
+        if (depth >= tPcD && abs(beta) < MATE_BOUND) {
+            int pb = beta + tPcM;
             int pm[256], ps[256];
             int pn = pos.gen(pm, true);
             for (int i = 0; i < pn; i++) ps[i] = moveScore(pos, pm[i], ttMove, ply);
@@ -5085,13 +5291,13 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             }
         }
     }
-    if (depth >= 4 && !ttMove && !inChk && !excluded) depth--;
+    if (depth >= tIirD && !ttMove && !inChk && !excluded) depth--;
     if ((v31Flags & 64) && cutNode && depth >= 6 && !ttMove && !inChk && !excluded) depth--;
     int mv[256], sc[256];
     int n = pos.gen(mv, false);
     for (int i = 0; i < n; i++) sc[i] = moveScore(pos, mv[i], ttMove, ply);
     int best = -INF, bestMove = 0, legal = 0, origAlpha = alpha, nq = 0, qSeen = 0;
-    int quiets[64];
+    int quiets[64]; int caps[32]; int ncap = 0;
     int selDone = 0;                    // moves 0 .. selDone-1 are already in their final (selection-sorted) place
     for (int i = 0; i < n; i++) {
         if (i >= selDone) {
@@ -5106,16 +5312,20 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
         if (!pv && !inChk && legal > 0 && best > -MATE_BOUND) {
             if (quiet) {
                 qSeen++;
-                if (depth <= 6 && qSeen > ((3 + depth * depth) >> (improving ? 0 : 1))) continue;
-                if (depth <= 7 && peval + 90 + 90 * depth <= alpha) continue;
+                if (depth <= tLmpD && qSeen > ((tLmpB + depth * depth) >> (improving ? 0 : 1))) continue;
+                if (depth <= tFutD && peval + tFutB + tFutM * depth <= alpha) continue;
                 if ((v31Flags & 4) && depth <= 4 && sc[i] < -v31HP * depth) continue;
             }
-            if (depth <= 6 && !seeGE(pos, m, quiet ? -30 * depth * depth : -90 * depth)) continue;
+            if ((k22Flags & 8) && (m & CAP) && !((m >> 12) & 7) && depth <= 5) {          // 2.2: capture futility
+                int cv = (m & EPF) ? 0 : pos.B[(m >> 6) & 63] % 6;
+                if (eval + tCapFutB + PV_[cv] + tCapFutM * depth <= alpha) continue;
+            }
+            if (depth <= tSeeD && !seeGE(pos, m, quiet ? -tSeeQ * depth * depth : -tSeeC * depth)) continue;
         }
         int ext = 0;
-        if (depth >= 7 && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - 3 &&
+        if (depth >= tSingD && m == ttMove && !excluded && ply > 0 && ttDepth >= depth - tSingTD &&
             (ttFlag == TT_LOWER || ttFlag == TT_EXACT) && abs(ttScore) < MATE_BOUND) {
-            int sb = ttScore - 2 * depth;
+            int sb = ttScore - tSingM * depth;
             int s2 = search((depth - 1) / 2, sb - 1, sb, ply, false, m, cutNode);
             if (stopFlag) return 0;
             if (s2 < sb) { ext = 1; if ((v31Flags & 8) && !pv && s2 < sb - v31DE) ext = 2; }
@@ -5129,6 +5339,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
             ttPrefetch(pos.keyAfter(mv[i + 1])); pos.prefetchRows(mv[i + 1]);
         }
         pieceAt[ply] = pos.B[m & 63]; toAt[ply] = (m >> 6) & 63;
+        long long nodes0 = nodes_;
         pos.make(m);
         if (pos.attacked(pos.kingSq(us), us ^ 1)) { pos.unmake(m); continue; }
         legal++;
@@ -5141,20 +5352,27 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                 R = lmrT[min(depth, 63)][min(legal, 63)];
                 if (pv) R--;
                 if (!improving) R++;
+                if ((k22Flags & 4) && ttMove && (ttMove & CAP)) R++;           // 2.2: the TT move is a capture: the quiet moves matter less
                 if ((v31Flags & 1) && cutNode) R += v31CutR;
                 if (givesCheck || inChk) R--;
                 if (m == killers[ply][0] || m == killers[ply][1]) R--;
-                R -= max(-2, min(2, sc[i] / 6000));
+                R -= max(-2, min(2, sc[i] / tLmrH));
                 R = max(0, min(R, nd - 1));
             }
             else if ((v31Flags & 16) && depth >= 3 && !quiet && sc[i] < 0 && legal >= 2) R = max(0, min(1 + (depth >= 5), nd - 1));
             s = -search(nd - R, -alpha - 1, -alpha, ply + 1, true, 0, R > 0 ? true : !cutNode);
-            if (s > alpha && R > 0) s = -search(nd, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            if (s > alpha && R > 0) {
+                int nd2 = nd;
+                if (k22Flags & 4) { if (s > best + 70 + 2 * nd) nd2 = nd + 1; else if (s < best + nd) nd2 = nd - 1; }     // 2.2: deeper / shallower re-search
+                s = -search(nd2, -alpha - 1, -alpha, ply + 1, true, 0, !cutNode);
+            }
             if (s > alpha && s < beta) s = -search(nd, -beta, -alpha, ply + 1, true, 0, false);
         }
         pos.unmake(m);
         if (stopFlag) return 0;
+        if (ply == 0) rootEff[m & 4095] += nodes_ - nodes0;
         if (quiet && nq < 64) quiets[nq++] = m;
+        else if ((m & CAP) && !((m >> 12) & 7) && ncap < 32) caps[ncap++] = m;
         if (s > best) {
             best = s;
             if (s > alpha) {
@@ -5166,7 +5384,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                     if (quiet) {
                         if (killers[ply][0] != m) { killers[ply][1] = killers[ply][0]; killers[ply][0] = m; }
                         if (ply >= 1 && pieceAt[ply - 1] >= 0) counterMv[pieceAt[ply - 1] * 64 + toAt[ply - 1]] = m;
-                        int bonus = min(depth * depth, 400);
+                        int bonus = min(depth * depth * tHbM / 10, tHbC);
                         for (int k = 0; k < nq; k++) {
                             int qm = quiets[k], sgn = (qm == m) ? 1 : -1;
                             int b = sgn * bonus;
@@ -5177,6 +5395,15 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
                             if (pc == EMPTYP) pc = pieceAt[ply];
                             if (ply >= 1 && pieceAt[ply - 1] >= 0) updHist(contHist[pieceAt[ply - 1] * 64 + toAt[ply - 1]][pc * 64 + ((qm >> 6) & 63)], b);
                             if (ply >= 2 && pieceAt[ply - 2] >= 0) updHist(contHist[pieceAt[ply - 2] * 64 + toAt[ply - 2]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                            if ((k22Flags & 2) && ply >= 4 && pieceAt[ply - 4] >= 0) updHist(contHist4[pieceAt[ply - 4] * 64 + toAt[ply - 4]][pc * 64 + ((qm >> 6) & 63)], b / 2);
+                        }
+                    }
+                    else if ((k22Flags & 1) && (m & CAP) && !((m >> 12) & 7)) {          // 2.2: capture history: reward the capture that cut off, punish the captures tried before it
+                        int bc = min(depth * depth, 400);
+                        for (int k = 0; k < ncap; k++) {
+                            int cm = caps[k], cv = (cm & EPF) ? 0 : pos.B[(cm >> 6) & 63] % 6, cp = pos.B[cm & 63];
+                            if (cp < 0 || cp >= 12) continue;
+                            updHist(capHist[cp * 64 + ((cm >> 6) & 63)][cv], cm == m ? bc : -bc);
                         }
                     }
                     break;
@@ -5213,6 +5440,7 @@ int search(int depth, int alpha, int beta, int ply, bool allowNull, int excluded
 void clearTables() {
     memset(history, 0, sizeof history); memset(contHist, 0, sizeof contHist); memset(counterMv, 0, sizeof counterMv);
     memset(corrHist, 0, sizeof corrHist); memset(corrNP, 0, sizeof corrNP); memset(killers, 0, sizeof killers);
+    memset(capHist, 0, sizeof capHist); memset(contHist4, 0, sizeof contHist4);
 }
 // helper thread: iterative deepening on a private copy of the root position; no output, stops with stopFlag
 void helperMain(int id) {
@@ -5225,7 +5453,7 @@ void helperMain(int id) {
         const int hk = (id - 1) & 15;
         if (((d + skipPhase[hk]) / skipSize[hk]) % 2) continue;             // each helper skips its own pattern of depths, so the threads work on different depths
         int sd = d;
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (sd >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
         int sc;
         while (true) {
@@ -5513,8 +5741,9 @@ void think() {
         catch (const std::exception&) {}              // fewer threads than asked for
     }
     for (int d = 1; d <= maxDepthLimit; d++) {
-        int alpha = -INF, beta = INF, delta = 25;
+        int alpha = -INF, beta = INF, delta = tAsp;
         if (d >= 5) { alpha = max(-INF, bestScore - delta); beta = min(INF, bestScore + delta); }
+        memset(rootEff, 0, sizeof rootEff); long long nodesIt0 = nodes_;
         int s;
         while (true) {
             s = search(d, alpha, beta, 0, false);
@@ -5569,6 +5798,10 @@ void think() {
             long long thr = softMs * 6 / 10;
             if (scoreDrop || stableIt == 0) thr = softMs * 9 / 10;
             if (stableIt >= 4 && !scoreDrop) thr = softMs * 4 / 10;
+            if (k22Flags & 16) {                // 2.2: most of the effort on the best move -> stop sooner; effort spread over many moves -> think longer
+                long long tot = nodes_ - nodesIt0; double fr = tot > 0 ? (double)rootEff[bestMove & 4095] / (double)tot : 0.5;
+                if (fr > 0.85 && !scoreDrop) thr = thr * tTmStab / 100; else if (fr < 0.35) thr = thr * tTmLow / 100;
+            }
             if (el >= thr) break;
         }
         if (legalCount == 1 && softMs > 0 && d >= 4) break;
@@ -5647,7 +5880,7 @@ int main(int argc, char** argv) {
       if (dir.empty()) { string a0 = argc > 0 && argv[0] ? argv[0] : ""; size_t sl = a0.find_last_of("\\/"); dir = sl == string::npos ? string() : a0.substr(0, sl + 1); }
       expPath = dir + "kestrel_experience_v2.dat"; loadExp();
       bookPath = dir + "claude_book.txt"; loadBook(); rngState ^= (U64)chrono::steady_clock::now().time_since_epoch().count(); }
-    for (int d = 1; d < 64; d++) for (int m = 1; m < 64; m++) lmrT[d][m] = (int)(0.8 + log((double)d) * log((double)m) / 2.2);
+    initLmr();
     pos.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
     if (argc > 1 && string(argv[1]) == "perft") {
         struct T { const char* fen; int d; long long n; } tests[] = {
@@ -5768,7 +6001,15 @@ int main(int argc, char** argv) {
         istringstream is(line); string cmd; is >> cmd;
         try {
         if (cmd == "uci") {
-            printf("id name Kestrel 2.1\nid author Claude\noption name Hash type spin default 256 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name NNBlend type spin default 70 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name OwnBook type check default false\noption name Net2Share type spin default 70 min 0 max 100\noption name UseNet2 type check default true\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\noption name CorrFlags type spin default 2 min 0 max 2\noption name Move Overhead type spin default 5 min 0 max 5000\noption name EvalCache type spin default 1 min 0 max 1\noption name V31Flags type spin default 0 min 0 max 255\noption name V31HistPrune type spin default 2500 min 0 max 20000\noption name V31CutR type spin default 1 min 0 max 3\noption name V31DE type spin default 20 min 0 max 200\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default false\noption name EvalFile type string default <internal>\noption name EvalScale type spin default 100 min 50 max 200\noption name ExperienceFile type string default kestrel_experience_v2.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\nuciok\n"); fflush(stdout);
+            printf("id name Kestrel 2.2\nid author Claude\noption name Hash type spin default 256 min 1 max 4096\noption name Threads type spin default 1 min 1 max 8\noption name OwnBook type check default false\noption name Move Overhead type spin default 5 min 0 max 5000\noption name MultiPV type spin default 1 min 1 max 8\noption name Ponder type check default false\noption name Clear Hash type button\noption name UCI_LimitStrength type check default false\noption name UCI_Elo type spin default 3200 min 1320 max 3200\noption name UseNNUE type check default true\noption name Experience type check default false\noption name EvalFile type string default <internal>\noption name EvalScale type spin default 100 min 50 max 200\noption name ExperienceFile type string default kestrel_experience_v2.dat\noption name UCI_ShowWDL type check default false\noption name UCI_AnalyseMode type check default false\noption name UCI_Chess960 type check default false\n");
+#ifdef KESTREL_TUNE_OPTIONS
+            printf("option name K22Flags type spin default %d min 0 max 255\n", k22Flags);
+            printf("option name NNBlend type spin default 100 min 0 max 100\noption name LazyMargin type spin default 0 min 0 max 3000\noption name EvalFlags type spin default 1 min 0 max 255\noption name QsTT type spin default 1 min 0 max 1\n"
+                   "option name CorrFlags type spin default 2 min 0 max 2\noption name EvalCache type spin default 1 min 0 max 1\noption name V31Flags type spin default %d min 0 max 255\noption name V31HistPrune type spin default 2500 min 0 max 20000\n"
+                   "option name V31CutR type spin default 1 min 0 max 3\noption name V31DE type spin default 20 min 0 max 200\n", v31Flags);
+            for (const auto& tn : k22Tun) printf("option name %s type spin default %d min %d max %d\n", tn.name, tn.def, tn.lo, tn.hi);
+#endif
+            printf("uciok\n"); fflush(stdout);
         } else if (cmd == "isready") { printf("readyok\n"); fflush(stdout); }
         else if (cmd == "ucinewgame") {
             { stopFlag = true; goInfinite = false; if (worker.joinable()) worker.join(); }
@@ -5782,10 +6023,11 @@ int main(int argc, char** argv) {
             { stopFlag = true; goInfinite = false; if (worker.joinable()) worker.join(); }
             {   // 36.3: UCI option names and check values are not case sensitive
                 static const char* declared[] = {"Hash", "Threads", "NNBlend", "LazyMargin", "OwnBook", "Net2Share", "UseNet2", "EvalFlags", "QsTT", "CorrFlags", "Move Overhead", "EvalCache",
-                                                 "V31Flags", "V31HistPrune", "V31CutR", "V31DE", "MultiPV", "Ponder", "Clear Hash", "UCI_LimitStrength", "UCI_Elo", "UseNNUE", "Experience", "ExperienceFile", "EvalFile", "EvalScale", "UCI_ShowWDL", "UCI_AnalyseMode", "UCI_Chess960"};
+                                                 "K22Flags", "V31Flags", "V31HistPrune", "V31CutR", "V31DE", "MultiPV", "Ponder", "Clear Hash", "UCI_LimitStrength", "UCI_Elo", "UseNNUE", "Experience", "ExperienceFile", "EvalFile", "EvalScale", "UCI_ShowWDL", "UCI_AnalyseMode", "UCI_Chess960"};
                 auto low = [](string s) { for (auto& ch : s) if (ch >= 'A' && ch <= 'Z') ch = (char)(ch + 32); return s; };
                 string ln = low(name);
                 for (const char* d : declared) if (low(d) == ln) { name = d; break; }
+                for (const auto& tn : k22Tun) if (low(tn.name) == ln) { name = tn.name; break; }
                 string lv = low(value); if (name != "ExperienceFile") value = lv == "true" ? string("true") : lv == "false" ? string("false") : value;
             }
             if (name == "UCI_ShowWDL") showWDL = (value == "true");
@@ -5797,6 +6039,8 @@ int main(int argc, char** argv) {
             if (name == "Move Overhead") moveOverhead = max(0, min(5000, atoi(value.c_str())));
             if (name == "EvalCache") evalCache = max(0, min(1, atoi(value.c_str())));
             if (name == "V31Flags") v31Flags = max(0, min(255, atoi(value.c_str())));
+            if (name == "K22Flags") k22Flags = max(0, min(255, atoi(value.c_str())));
+            for (const auto& tn : k22Tun) if (name == tn.name) { *tn.v = max(tn.lo, min(tn.hi, atoi(value.c_str()))); if (name == "T_LmrB" || name == "T_LmrDv") initLmr(); }
             if (name == "V31HistPrune") v31HP = max(0, min(20000, atoi(value.c_str())));
             if (name == "V31CutR") v31CutR = max(0, min(3, atoi(value.c_str())));
             if (name == "V31DE") v31DE = max(0, min(200, atoi(value.c_str())));
@@ -5808,7 +6052,9 @@ int main(int argc, char** argv) {
             if (name == "UCI_Elo") uciElo = max(1320, min(3200, atoi(value.c_str())));
             if (name == "QsTT") qsTT = max(0, min(1, atoi(value.c_str())));
             if (name == "EvalFlags") evalFlags = max(0, min(255, atoi(value.c_str())));
+#ifdef KESTREL_TUNE_OPTIONS
             if (name == "NNBlend") nnBlend = max(0, min(100, atoi(value.c_str())));
+#endif
             if (name == "Net2Share") net2Share = max(0, min(100, atoi(value.c_str())));
             if (name == "UseNet2") useNet2 = (value == "true");
             if (name == "UseNNUE") { nnueReady = netLoaded && value == "true"; pos.refresh(); }

@@ -37,7 +37,7 @@ The executables are not code-signed.
   6,400 + 1,600 + 1,200 games against Claude 39.
 * Windows x86-64-v2 and x86-64: bench equal to v3 (439,247 nodes, depth 12) and the 1.1 features test (builds without warnings, equal bench, `CLAUDE_FORCE_PEXT=1` harmless).
 * The pthread wrapper was compiled and run on Windows (winpthreads) with a deliberately tiny 128 KB main stack: 5 endgame / middlegame positions on 1 and 4 threads, `stop`, MultiPV.
-* Linux and macOS builds were compiled with Zig and checked for file format but **never run**: no Linux or macOS machine was available.
+* Linux and macOS builds were compiled with Zig and checked for file format. They were first run on 2026-11-01 by the GitHub Actions workflow `.github/workflows/verify-release.yml`, which downloads the published files and runs them on GitHub's machines: Linux x86-64 (v3, v2 and generic), Linux ARM64 and macOS (Apple silicon) all gave the recorded bench and answered a UCI session (the Linux x86-64-v3 build also passed both audits and the test scripts in `tests/`). The macOS Intel build has not been run.
 
 ## Kestrel 2.0
 
@@ -53,4 +53,4 @@ The network is not stored in the git history (76 MB per version): download `kest
 The AVX2 evaluation code is compiled only when the compiler targets AVX2 (the last layers also need FMA); every other target uses plain loops with exactly the same results
 (bench depth 12 = 1,051,844 nodes on all three Windows builds of 2.1; 2.0 gave 934,326: the difference comes only from the changed default settings, Hash 256 MB and no opening book). The tools used to find and check the speed-ups are not part of the repository.
 
-2.1 is 2.0 with other default settings (Hash 256, `OwnBook` and `Experience` off) and was checked again (files with `_2_1_` in the name in `logs/`). Tested for 2.0 (Windows x86-64-v3, logs in `logs/`): the 27-check verification with AddressSanitizer / UBSan, also with 4 threads (`v2_0_verify_log.txt`), a fuzz campaign (`v2_0_fuzz_campaign_log.txt`), the two 1.1 audits (`audit_probe_2_0_output.txt`, 83 of 83; `audit_sem_2_0_output.txt`, 31 of 31) and the matches against 1.1 and 1.0 (`fast_matches_2_0.txt`). The Linux and macOS builds were compiled with Zig and never run.
+2.1 is 2.0 with other default settings (Hash 256, `OwnBook` and `Experience` off) and was checked again (files with `_2_1_` in the name in `logs/`). 2.2 plays the same moves as 2.1 (only the option list changed) and was checked again too (`_2_2_`). Tested for 2.0 (Windows x86-64-v3, logs in `logs/`): the 27-check verification with AddressSanitizer / UBSan, also with 4 threads (`v2_0_verify_log.txt`), a fuzz campaign (`v2_0_fuzz_campaign_log.txt`), the two 1.1 audits (`audit_probe_2_0_output.txt`, 83 of 83; `audit_sem_2_0_output.txt`, 31 of 31) and the matches against 1.1 and 1.0 (`fast_matches_2_0.txt`). The Linux and macOS builds were compiled with Zig; what the GitHub Actions workflow ran of them is described above.
