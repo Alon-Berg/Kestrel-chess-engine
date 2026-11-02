@@ -167,10 +167,11 @@ jobs:
           set +e
           EXPECT=$(tr -d '\r\n ' < tests/BENCH)
           ./kestrel_asan bench 12 > o.txt 2>&1; RC=$?
-          tail -n 25 o.txt
-          echo "::notice title=bench exit code $RC (expected nodes $EXPECT)::$(tail -n 25 o.txt | head -c 3500 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+          tail -c 3000 o.txt
+          echo "::notice title=bench exit code $RC (expected nodes $EXPECT)::$( { grep -n -E 'runtime error|AddressSanitizer|SUMMARY|ERROR|Assertion|terminate' o.txt | head -n 12; echo '--- last bytes ---'; tail -c 1500 o.txt; } | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
           test $RC = 0 && tail -n 1 o.txt | grep -q "nodes $EXPECT "
       - name: UCI fuzzer under the sanitizers
+        if: ${{ always() }}
         run: |
           python tests/uci_fuzz.py ./kestrel_asan 200 7 | tee o.txt
           grep -q "failures 0" o.txt
