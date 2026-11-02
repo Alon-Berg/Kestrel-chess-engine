@@ -10,7 +10,7 @@ on:
       tag:
         description: "Release tag whose published files are tested"
         required: false
-        default: "v2.1"
+        default: "v2.3"
   push:
     paths:
       - ".github/workflows/verify-release.yml"
@@ -19,7 +19,7 @@ on:
 
 env:
   REPO: Alon-Berg/Kestrel-chess-engine
-  TAG: ${{ github.event.inputs.tag || 'v2.1' }}
+  TAG: ${{ github.event.inputs.tag || 'v2.3' }}
 
 jobs:
   shipped-binaries:
@@ -54,7 +54,7 @@ jobs:
           uname -a || true
       - name: Depth-12 bench must give the recorded node count
         run: |
-          case "$TAG" in v2.1) EXPECT=1051844;; v2.0) EXPECT=934326;; *) EXPECT="";; esac
+          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; *) EXPECT="";; esac
           OUT=$("$EXE" bench 12 | tail -n 1); echo "$OUT"
           if [ -n "$EXPECT" ]; then echo "$OUT" | grep -q "nodes $EXPECT " || { echo "bench differs from $EXPECT"; exit 1; }; fi
       - name: UCI smoke test
@@ -145,7 +145,7 @@ jobs:
           python-version: "3.12"
       - run: pip install chess
       - name: Network file
-        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.1/kestrel_net_2_0.bin"
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
       - name: Compile with clang, AddressSanitizer and UBSan
         run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_2_0.cpp
       - name: Accumulator self-test under the sanitizers
@@ -186,8 +186,8 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Network file (the network of 2.0 and 2.1; the assembler reads it from the current directory)
-        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.1/kestrel_net_2_0.bin"
+      - name: Network file (the network of 2.0 to 2.3; the assembler reads it from the current directory)
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
       - name: Compile src/kestrel_2_0.cpp
         run: |
           if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_2_0.cpp
