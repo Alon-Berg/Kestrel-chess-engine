@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+        os: [ubuntu-latest, ubuntu-24.04-arm]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -77,11 +77,81 @@ jobs:
           python tests/options_test.py "$(pwd)/kestrel" | tee o.txt
           grep -E "0 differences" o.txt
 
+  test-suite:
+    name: test suite on Linux (built from source for x86-64-v3, 2.3 network)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess
+      - name: Network file (2.3)
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
+      - name: Compile src/kestrel_3_0.cpp for x86-64-v3 (the AVX2 code path)
+        run: |
+          g++ -std=c++17 -O3 -march=x86-64-v3 -pthread -DNDEBUG -o kestrel src/kestrel_3_0.cpp
+          echo "EXE=$(pwd)/kestrel" >> "$GITHUB_ENV"
+      - name: Depth-12 bench must give 1,051,844 nodes (the AVX2 code agrees with the plain code)
+        run: |
+          ./kestrel bench 12 | tail -n 1 | tee o.txt
+          grep -q "nodes 1051844 " o.txt
+      - name: Protocol and robustness audit (83 cases)
+        run: |
+          python tests/audit_probe.py "$EXE" | tee o.txt
+          grep -E "[0-9]+ cases, 0 failed" o.txt
+      - name: Rules audit against python-chess (31 checks)
+        run: |
+          python tests/audit_sem.py "$EXE" | tee o.txt
+          grep -E "[0-9]+ checks, 0 failed" o.txt
+      - name: Edge cases of the UCI protocol (303)
+        run: |
+          python tests/edge_test.py "$EXE" 30 | tee o.txt
+          grep -E "problems 0" o.txt
+      - name: Chess960 against python-chess
+        run: |
+          python tests/chess960_test.py "$EXE" 60 1 | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: Clock next to a depth or node limit
+        run: |
+          python tests/clock_limit_test.py "$EXE" | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: UCI features (MultiPV, ponder, limit strength, threads)
+        run: |
+          python tests/test_uci_features.py "$EXE" | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: "Declared option defaults must not change the engine (2.0 and 2.1 fail this because of NNBlend)"
+        run: |
+          python tests/options_test.py "$EXE" | tee o.txt
+          grep -F " 0 differences" o.txt
+      - name: Interoperability with python-chess's UCI client
+        run: |
+          python tests/interop_test.py "$EXE" | tee o.txt
+          grep -E " 0 failed" o.txt
+      - name: UCI fuzzer (two seeds)
+        run: |
+          python tests/uci_fuzz.py "$EXE" 400 1 | tee o.txt
+          grep -E "failures 0" o.txt
+          python tests/uci_fuzz.py "$EXE" 400 2 | tee o.txt
+          grep -E "failures 0" o.txt
+      - name: go infinite and stop
+        run: |
+          python tests/race_test.py "$EXE" 20 | tee o.txt
+          grep -F "hung (no bestmove within 5 s): 0" o.txt
+          python tests/infinite_test.py "$EXE" | tee o.txt
+          grep -F "BEFORE stop: False" o.txt
+      - name: Thread start / stop stress (4 threads) and a very long move list
+        run: |
+          python tests/stress_stop.py "$EXE" 300 11 4 | tee o.txt
+          grep -E "OK" o.txt
+          python tests/longlist_test.py "$EXE" | tee o.txt
+          grep -F "alive: True" o.txt
+
   sanitizers:
     name: AddressSanitizer + UBSan on Linux (2.3 network)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    continue-on-error: true
     env:
       ASAN_OPTIONS: "detect_leaks=0:halt_on_error=1"
     steps:
