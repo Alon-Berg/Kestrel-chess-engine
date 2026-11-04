@@ -1,0 +1,136 @@
+name: preview-3.0
+
+# Pre-release check of the Kestrel 3.0 SOURCE on GitHub's machines (this branch only; nothing is published by this workflow).
+# The network of 2.3 is used, so the strength is that of 2.3 and the depth-12 bench is 1,051,844 nodes; what is checked is the code:
+# the Syzygy (Fathom) code and the search threads on Linux x86-64, Linux ARM64, macOS Apple silicon and macOS Intel, and the sanitizers on Linux.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "preview-3.0"
+
+env:
+  REPO: Alon-Berg/Kestrel-chess-engine
+
+jobs:
+  build-test:
+    name: build and test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess
+      - name: Network file (2.3)
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
+      - name: Compile src/kestrel_3_0.cpp
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_0.cpp
+          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_0.cpp; fi
+          uname -a
+      - name: Depth-12 bench must give 1,051,844 nodes
+        run: |
+          ./kestrel bench 12 | tail -n 1 | tee o.txt
+          grep -q "nodes 1051844 " o.txt
+      - name: UCI smoke test
+        run: |
+          printf 'uci\nisready\nposition startpos moves e2e4 e7e5\ngo depth 10\nquit\n' | ./kestrel | tee uci.txt
+          grep -q '^uciok' uci.txt && grep -q '^readyok' uci.txt && grep -q '^bestmove ' uci.txt
+      - name: Syzygy files with 3 and 4 men (WDL and DTZ)
+        run: |
+          mkdir tb
+          for D in 3-4-5-wdl 3-4-5-dtz; do
+            curl -fsSL "https://tablebase.lichess.ovh/tables/standard/$D/" -o "idx_$D.html"
+            for F in $(grep -o 'K[A-Z]*vK[A-Z]*\.rtb[wz]' "idx_$D.html" | sort -u); do
+              STEM="${F%%.*}"
+              if [ ${#STEM} -le 5 ]; then curl -fsSL -o "tb/$F" "https://tablebase.lichess.ovh/tables/standard/$D/$F"; fi
+            done
+          done
+          ls tb | wc -l
+      - name: Syzygy test against python-chess, 1 thread
+        run: |
+          TB_MAXMEN=4 python tests/tb_test.py "$(pwd)/kestrel" tb 300 1 8 | tee o.txt
+          grep -F "tb_test: PASS" o.txt
+      - name: Syzygy test against python-chess, 4 threads
+        run: |
+          TB_THREADS=4 TB_MAXMEN=4 python tests/tb_test.py "$(pwd)/kestrel" tb 150 2 4 | tee o.txt
+          grep -F "tb_test: PASS" o.txt
+      - name: go infinite and stop, UCI fuzzer, stop stress with 4 threads
+        run: |
+          python tests/race_test.py "$(pwd)/kestrel" 20 | tee o.txt
+          grep -F "hung (no bestmove within 5 s): 0" o.txt
+          python tests/infinite_test.py "$(pwd)/kestrel" | tee o.txt
+          grep -F "BEFORE stop: False" o.txt
+          python tests/uci_fuzz.py "$(pwd)/kestrel" 400 1 | tee o.txt
+          grep -E "failures 0" o.txt
+          python tests/stress_stop.py "$(pwd)/kestrel" 300 11 4 | tee o.txt
+          grep -E "OK" o.txt
+      - name: Options test
+        run: |
+          python tests/options_test.py "$(pwd)/kestrel" | tee o.txt
+          grep -E "0 differences" o.txt
+
+  sanitizers:
+    name: AddressSanitizer + UBSan on Linux (2.3 network)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    continue-on-error: true
+    env:
+      ASAN_OPTIONS: "detect_leaks=0:halt_on_error=1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess
+      - name: Network file
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
+      - name: Compile with clang, AddressSanitizer and UBSan
+        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_3_0.cpp
+      - name: Accumulator self-test under the sanitizers
+        run: |
+          set +e
+          ./kestrel_asan acctest > o.txt 2>&1; RC=$?
+          tail -n 25 o.txt
+          echo "::notice title=acctest exit code $RC::$(tail -n 25 o.txt | head -c 3500 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+          test $RC = 0 && grep -q "mismatches 0" o.txt
+      - name: Perft under the sanitizers
+        run: |
+          set +e
+          ./kestrel_asan perft > o.txt 2>&1; RC=$?
+          tail -n 25 o.txt
+          echo "::notice title=perft exit code $RC::$(tail -n 25 o.txt | head -c 3500 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+          test $RC = 0 && test "$(grep -c '^OK' o.txt)" = "6"
+      - name: Depth-12 bench under the sanitizers
+        run: |
+          set +e
+          EXPECT=$(tr -d '\r\n ' < tests/BENCH)
+          ./kestrel_asan bench 12 > o.txt 2>&1; RC=$?
+          tail -c 3000 o.txt
+          echo "::notice title=bench exit code $RC (expected nodes $EXPECT)::$( { grep -n -E 'runtime error|AddressSanitizer|SUMMARY|ERROR|Assertion|terminate' o.txt | head -n 12; echo '--- last bytes ---'; tail -c 1500 o.txt; } | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+          test $RC = 0 && tail -n 1 o.txt | grep -q "nodes $EXPECT "
+      - name: UCI fuzzer under the sanitizers
+        if: ${{ always() }}
+        run: |
+          python tests/uci_fuzz.py ./kestrel_asan 200 7 | tee o.txt
+          grep -q "failures 0" o.txt
+      - name: Syzygy (3 and 4 men) under the sanitizers
+        if: ${{ always() }}
+        run: |
+          mkdir tb
+          for D in 3-4-5-wdl 3-4-5-dtz; do
+            curl -fsSL "https://tablebase.lichess.ovh/tables/standard/$D/" -o "idx_$D.html"
+            for F in $(grep -o 'K[A-Z]*vK[A-Z]*\.rtb[wz]' "idx_$D.html" | sort -u); do
+              STEM="${F%%.*}"
+              if [ ${#STEM} -le 5 ]; then curl -fsSL -o "tb/$F" "https://tablebase.lichess.ovh/tables/standard/$D/$F"; fi
+            done
+          done
+          TB_MAXMEN=4 python tests/tb_test.py "$(pwd)/kestrel_asan" tb 150 1 3 | tee o.txt
+          grep -F "tb_test: PASS" o.txt

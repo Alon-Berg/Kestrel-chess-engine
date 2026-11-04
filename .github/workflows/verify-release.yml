@@ -12,6 +12,8 @@ on:
         required: false
         default: "v2.3"
   push:
+    branches-ignore:
+      - "preview-3.0"
     paths:
       - ".github/workflows/verify-release.yml"
       - "tests/**"

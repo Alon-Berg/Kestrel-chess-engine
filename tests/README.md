@@ -12,8 +12,9 @@ Black-box tests: every script takes the path of a Kestrel executable and talks t
 | `test_uci_features.py <exe>` | MultiPV, ponder, Clear Hash, UCI_LimitStrength, threads |
 | `interop_test.py <exe>` | the engine driven by python-chess's own UCI client (ponder hits and misses, Chess960, new games) |
 | `options_test.py <exe>` | sends the declared default of every option (what a "reset to defaults" does) and requires the search to be identical to one with no option sent; Kestrel 2.0 and 2.1 fail it (they declared `NNBlend` with default 70 but ran at 100) |
+| `tb_test.py <exe> <syzygy folder> [positions] [seed] [conversion games]` | Kestrel 3.0 and later: Syzygy probing against python-chess reading the same files (win/draw/loss of random 3-5 man positions, the root move filter, search, and conversion of won endgames to a mate). `TB_MAXMEN=4` limits it to 3 and 4 men, `TB_THREADS=n` sets `Threads`; the last line is `tb_test: PASS` or `FAIL`. Needs the tablebase files (see `docs/SYZYGY.md`) |
 | `uci_fuzz.py <exe> <sequences> <seed>` | random command sequences; the engine must survive and answer |
-| `race_test.py <exe> <runs>`, `infinite_test.py <exe>` | `go infinite` followed by an immediate `stop`; `go infinite` must wait for `stop` |
+| `race_test.py <exe> <runs>`, `infinite_test.py <exe>` | `go infinite` followed by an immediate `stop` (sent after `readyok`, so that a slow start of the 80 MB program on a busy machine is not counted as a hang; Kestrel 3.0 and later); `go infinite` must wait for `stop` |
 | `stress_stop.py <exe> <iterations> <seed> <threads>` | random go / stop / position / ucinewgame / setoption bursts with millisecond gaps |
 | `longlist_test.py <exe>` | a move list of 4,000 plies |
 | `BENCH` | the depth-12 bench node count of the source in `src/` (`kestrel bench 12`) |
