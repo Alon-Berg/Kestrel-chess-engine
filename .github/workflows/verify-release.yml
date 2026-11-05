@@ -3,6 +3,7 @@ name: verify-release
 # Runs the binaries that were published on the release page, and builds the source, on Linux, macOS and Windows machines of GitHub Actions.
 # The author has no Linux or macOS machine: this is how the Linux and macOS builds get run at all.
 # Start it by hand (Actions > verify-release > Run workflow, optionally with another release tag) or it runs when this file, the tests or the source change.
+# The jobs that need the network file or the published files fail until the release of that tag has been published (the network is a release asset).
 
 on:
   workflow_dispatch:
@@ -10,16 +11,16 @@ on:
       tag:
         description: "Release tag whose published files are tested"
         required: false
-        default: "v2.3"
+        default: "v3.0"
   push:
     paths:
       - ".github/workflows/verify-release.yml"
       - "tests/**"
-      - "src/kestrel_2_0.cpp"
+      - "src/kestrel_3_0.cpp"
 
 env:
   REPO: Alon-Berg/Kestrel-chess-engine
-  TAG: ${{ github.event.inputs.tag || 'v2.3' }}
+  TAG: ${{ github.event.inputs.tag || 'v3.0' }}
 
 jobs:
   shipped-binaries:
@@ -35,6 +36,7 @@ jobs:
           - { os: ubuntu-latest,    asset: linux-x86-64,      ext: tar.gz }
           - { os: ubuntu-24.04-arm, asset: linux-arm64,       ext: tar.gz }
           - { os: macos-latest,     asset: macos-arm64,       ext: tar.gz }
+          - { os: macos-15-intel,   asset: macos-x86-64,      ext: tar.gz }
           - { os: windows-latest,   asset: windows-x86-64-v3, ext: zip }
     defaults:
       run:
@@ -54,13 +56,64 @@ jobs:
           uname -a || true
       - name: Depth-12 bench must give the recorded node count
         run: |
-          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; *) EXPECT="";; esac
+          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0) EXPECT=859322;; *) EXPECT="";; esac
           OUT=$("$EXE" bench 12 | tail -n 1); echo "$OUT"
           if [ -n "$EXPECT" ]; then echo "$OUT" | grep -q "nodes $EXPECT " || { echo "bench differs from $EXPECT"; exit 1; }; fi
       - name: UCI smoke test
         run: |
           printf 'uci\nisready\nposition startpos moves e2e4 e7e5\ngo depth 10\nquit\n' | "$EXE" | tee uci.txt
           grep -q '^uciok' uci.txt && grep -q '^readyok' uci.txt && grep -q '^bestmove ' uci.txt
+
+  tablebases:
+    name: Syzygy on ${{ matrix.asset }}
+    # Syzygy support starts with 3.0
+    if: ${{ !startsWith(github.event.inputs.tag || 'v3.0', 'v2.') && !startsWith(github.event.inputs.tag || 'v3.0', 'v1.') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    asset: linux-x86-64-v3,   ext: tar.gz }
+          - { os: ubuntu-24.04-arm, asset: linux-arm64,       ext: tar.gz }
+          - { os: macos-latest,     asset: macos-arm64,       ext: tar.gz }
+          - { os: windows-latest,   asset: windows-x86-64-v3, ext: zip }
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install chess
+      - name: Download the published file
+        run: |
+          VER="${TAG#v}"
+          curl -fsSL -o "pkg.${{ matrix.ext }}" "https://github.com/${REPO}/releases/download/${TAG}/Kestrel-${VER}-${{ matrix.asset }}.${{ matrix.ext }}"
+          mkdir pkg
+          if [ "${{ matrix.ext }}" = "zip" ]; then unzip -q pkg.zip -d pkg; else tar xzf pkg.tar.gz -C pkg; fi
+          EXE=$(find pkg -type f \( -name kestrel -o -name kestrel.exe \) | head -n 1)
+          chmod +x "$EXE" || true
+          EXE="$(pwd)/$EXE"; EXE=$(cygpath -w "$EXE" 2>/dev/null || echo "$EXE")
+          echo "EXE=$EXE" >> "$GITHUB_ENV"
+          echo "$EXE"
+      - name: Download the Syzygy files with 3 and 4 men (WDL and DTZ)
+        run: |
+          mkdir tb
+          for D in 3-4-5-wdl 3-4-5-dtz; do
+            curl -fsSL "https://tablebase.lichess.ovh/tables/standard/$D/" -o "idx_$D.html"
+            for F in $(grep -o 'K[A-Z]*vK[A-Z]*\.rtb[wz]' "idx_$D.html" | sort -u); do
+              STEM="${F%%.*}"
+              if [ ${#STEM} -le 5 ]; then curl -fsSL -o "tb/$F" "https://tablebase.lichess.ovh/tables/standard/$D/$F"; fi
+            done
+          done
+          ls tb | wc -l
+          du -sh tb || true
+      - name: Syzygy test against python-chess (3 and 4 men)
+        run: |
+          TB_MAXMEN=4 python tests/tb_test.py "$EXE" tb 300 1 8 | tee o.txt
+          grep -F "tb_test: PASS" o.txt
 
   test-suite:
     name: test suite on Linux (published x86-64-v3 build)
@@ -134,7 +187,7 @@ jobs:
   sanitizers:
     name: AddressSanitizer + UBSan on Linux
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     continue-on-error: true
     env:
       ASAN_OPTIONS: "detect_leaks=0:halt_on_error=1"
@@ -145,9 +198,9 @@ jobs:
           python-version: "3.12"
       - run: pip install chess
       - name: Network file
-        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v3.0/kestrel_net_3_0.bin"
       - name: Compile with clang, AddressSanitizer and UBSan
-        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_2_0.cpp
+        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_3_0.cpp
       - name: Accumulator self-test under the sanitizers
         run: |
           set +e
@@ -175,6 +228,19 @@ jobs:
         run: |
           python tests/uci_fuzz.py ./kestrel_asan 200 7 | tee o.txt
           grep -q "failures 0" o.txt
+      - name: Syzygy (3 and 4 men) under the sanitizers
+        if: ${{ always() }}
+        run: |
+          mkdir tb
+          for D in 3-4-5-wdl 3-4-5-dtz; do
+            curl -fsSL "https://tablebase.lichess.ovh/tables/standard/$D/" -o "idx_$D.html"
+            for F in $(grep -o 'K[A-Z]*vK[A-Z]*\.rtb[wz]' "idx_$D.html" | sort -u); do
+              STEM="${F%%.*}"
+              if [ ${#STEM} -le 5 ]; then curl -fsSL -o "tb/$F" "https://tablebase.lichess.ovh/tables/standard/$D/$F"; fi
+            done
+          done
+          TB_MAXMEN=4 python tests/tb_test.py "$(pwd)/kestrel_asan" tb 150 1 3 | tee o.txt
+          grep -F "tb_test: PASS" o.txt
 
   build-from-source:
     name: build on ${{ matrix.os }}
@@ -186,12 +252,12 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Network file (the network of 2.0 to 2.3; the assembler reads it from the current directory)
-        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v2.3/kestrel_net_2_0.bin"
-      - name: Compile src/kestrel_2_0.cpp
+      - name: Network file (the network of 3.0; the assembler reads it from the current directory)
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v3.0/kestrel_net_3_0.bin"
+      - name: Compile src/kestrel_3_0.cpp
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_2_0.cpp
-          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_2_0.cpp; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_0.cpp
+          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_0.cpp; fi
       - name: Depth-12 bench must give the number recorded in tests/BENCH
         run: |
           EXPECT=$(tr -d '\r\n ' < tests/BENCH)
