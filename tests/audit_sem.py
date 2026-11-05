@@ -123,7 +123,10 @@ e.close()
 
 # S10: promotions and en passant at the root
 e = Eng()
-seg, bm = e.go("8/P6k/8/8/8/8/8/K7 w - - 0 1", "go depth 6"); check("promotion to queen when winning", bm and bm.split()[1] in ("a7a8q",), bm)
+seg, bm = e.go("8/P6k/8/8/8/8/8/K7 w - - 0 1", "go depth 6")
+pv = ([l for l in seg if l.startswith("info depth") and " pv " in l] or [""])[-1].split(" pv ")[-1].split()
+# promotes at once, or plays a quiet winning move first and promotes within its next two moves (the 3.0 network sometimes prefers Ka2 here; both win, checked with the tablebases)
+check("promotion to queen when winning", bool(bm) and (bm.split()[1] == "a7a8q" or "a7a8q" in pv[:3]), "%s | pv %s" % (bm, " ".join(pv[:4])))
 seg, bm = e.go("8/8/8/8/k7/8/p7/2K5 b - - 0 1", "go depth 8"); check("promotion with check/underpromotion options handled", bm and chess.Move.from_uci(bm.split()[1]) in chess.Board("8/8/8/8/k7/8/p7/2K5 b - - 0 1").legal_moves, bm)
 seg, bm = e.go("8/8/8/8/k2pP3/8/8/4K3 b - e3 0 1", "go depth 6"); b = chess.Board("8/8/8/8/k2pP3/8/8/4K3 b - e3 0 1"); check("en passant position: legal bestmove", bm and chess.Move.from_uci(bm.split()[1]) in b.legal_moves, bm)
 seg, bm = e.go("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", "go depth 6"); b = chess.Board("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"); check("castling position: legal bestmove", bm and chess.Move.from_uci(bm.split()[1]) in b.legal_moves, bm)

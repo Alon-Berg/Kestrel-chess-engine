@@ -54,3 +54,19 @@ The AVX2 evaluation code is compiled only when the compiler targets AVX2 (the la
 (bench depth 12 = 1,051,844 nodes on all three Windows builds of 2.1; 2.0 gave 934,326: the difference comes only from the changed default settings, Hash 256 MB and no opening book). The tools used to find and check the speed-ups are not part of the repository.
 
 2.1 is 2.0 with other default settings (Hash 256, `OwnBook` and `Experience` off) and was checked again (files with `_2_1_` in the name in `logs/`). 2.2 plays the same moves as 2.1 (only the option list changed) and was checked again too (`_2_2_`). 2.3 fixes an int32 overflow in the evaluation and was checked again (`_2_3_`); its sanitizer verification ran on Linux in the GitHub Actions workflow as well. Tested for 2.0 (Windows x86-64-v3, logs in `logs/`): the 27-check verification with AddressSanitizer / UBSan, also with 4 threads (`v2_0_verify_log.txt`), a fuzz campaign (`v2_0_fuzz_campaign_log.txt`), the two 1.1 audits (`audit_probe_2_0_output.txt`, 83 of 83; `audit_sem_2_0_output.txt`, 31 of 31) and the matches against 1.1 and 1.0 (`fast_matches_2_0.txt`). The Linux and macOS builds were compiled with Zig; what the GitHub Actions workflow ran of them is described above.
+
+## Kestrel 3.0
+
+`src/kestrel_3_0.cpp` is the whole engine, including the Syzygy tablebase reader (Fathom, MIT licence; its notice is at the start of its block and in `THIRD_PARTY_NOTICES.txt`; it makes the file about 4,700 lines longer and the compile a few seconds slower). The network (76 MB) is embedded with `.incbin "kestrel_net.bin"`, and the assembler looks that file up in the **current directory** (not next to the source).
+The network is not stored in the git history: download `kestrel_net_3_0.bin` from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
+
+| Target | Compile with |
+|---|---|
+| Windows / Linux x86-64-v3 (AVX2 + BMI2) | `g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_3_0.cpp` |
+| x86-64-v2, plain x86-64 | same with `-march=x86-64-v2` or `-march=x86-64` (plain evaluation loops, about 37 % slower) |
+| ARM64, macOS, Linux cross builds | as for 1.1 above with `kestrel_3_0.cpp` (compiled with Zig; the macOS Apple silicon and Linux ARM64 builds ran in the GitHub Actions workflow) |
+| another network width | add `-DKESTREL_H1=<width>` (a multiple of 64; the default is 1536, the width of the released network; the network file must have the same width) |
+
+Nothing else changes for 3.0: the AVX2 evaluation code is compiled only when the compiler targets AVX2 and FMA, every other target uses plain loops with exactly the same results (depth-12 bench = 859,322 nodes on all three Windows builds). Syzygy tablebases need no compile option: Fathom is part of the file and is switched on at run time by the option `SyzygyPath` (see `docs/SYZYGY.md`). The Windows release exes are stripped and carry the version-info block as described above.
+
+Tested for 3.0 (Windows x86-64-v3, logs in `logs/`): the 30-check verification with AddressSanitizer / UBSan, also with 4 threads, and the Syzygy test (`v3_0_verify_log.txt`, 30 of 30), the two audits (`audit_probe_3_0_output.txt`, 83 of 83; `audit_sem_3_0_output.txt`, 31 of 31), the options test (20 options, 0 differences) and, with the 3-4-5-men files, `tests/tb_test.py` (1,500 positions, 0 mismatches against python-chess; conversion 30 of 30). The Linux and macOS builds were compiled with Zig (clang) and checked for file format; the GitHub Actions workflow runs the published files and the source on GitHub's machines.

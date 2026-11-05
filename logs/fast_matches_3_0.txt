@@ -1,0 +1,32 @@
+Kestrel 3.0 (final; the network is snapshot 7 of the second training stage), x86-64-v3 build (the packaged exe).
+fastchess, 1 thread, Hash 64 MB, Experience and OwnBook off, no adjudication, time control base+increment in seconds, 12 games at a time on one laptop, every engine process at full speed (qos_engines_watch.py: Windows efficiency throttling off), the same openings for both sides (colours swapped).
+Elo = 3.0 against the older Kestrel; the value after +/- is fastchess's 95 % interval; W / L / D from the point of view of 3.0.
+
+against Kestrel 2.3 (packaged x86-64-v3 exe)
+  1+0.01   +192.40 +/- 22.81   W  379  L   77  D  144   (600 games)
+  2+0.02   +149.96 +/- 23.27   W  350  L  106  D  144   (600 games)
+  3+0.03   +145.95 +/- 16.62   W  563  L  166  D  271   (1000 games)
+  5+0.1    +105.25 +/- 14.37   W  475  L  181  D  344   (1000 games)
+  10+0.1   +101.84 +/- 21.72   W  181  L   67  D  152   (400 games)
+  20+0.5   +101.84 +/- 28.43   W   92  L   35  D   73   (200 games)
+pooled over all time controls (inverse-variance weights): +130.0 +/- 8.0 against 2.3 (3800 games); pooled over 5+0.1, 10+0.1 and 20+0.5: +103.9 +/- 11.0 (1600 games)
+
+the same matches played a FIRST time, before the full-speed fix of the engine processes (Windows can throttle the processes that a hidden job starts); superseded by the set above:
+  1+0.01   +182.46 +/- 24.65   W  380  L   91  D  129   (600 games)
+  2+0.02   +151.35 +/- 21.63   W  337  L   91  D  172   (600 games)
+  3+0.03   +141.85 +/- 15.78   W  537  L  150  D  313   (1000 games)
+  5+0.1    +121.06 +/- 15.21   W  501  L  166  D  333   (1000 games)
+  10+0.1   +212.37 +/- 26.22   W  253  L   35  D  112   (400 games)
+  20+0.5   +166.23 +/- 32.99   W  110  L   21  D   69   (200 games)
+  replicate with the fix, 5+0.1, the openings of the first 200 rounds of the first-set match: +126.97 +/- 23.97   W 210  L 70  D 120   (400 games)
+  replicate with the fix, 10+0.1, the openings of the first-set match: +134.95 +/- 22.92   W 209  L 61  D 130   (400 games)
+The first set is not reliable: at 10+0.1 it gave +212 where the second set gave +102, at 20+0.5 +166 where the second gave +102, more than the 95 % intervals allow. The probable cause is that Windows slowed down some engine processes that the hidden job had started (the packaged 2.3 exe has no opt-out); the replicates made with the fix and the second set agree with each other. The second set is the one quoted in the README.
+
+release check of the packaged exe (chainA30.sh; played before the full-speed fix, so it belongs with the first set), 5+0.1, 12 games at a time: +201.43 +/- 26.23   W 253  L 44  D 103  (400 games, all terminations normal)
+
+network against network, the same engine, 20,000 nodes per move, Hash 32, adjudication (resign 4 moves beyond 600 cp; draw from move 40, 6 moves within 15 cp): 3.0 network against the 2.3 network +137.98 +/- 10.92   W 1079  L 324  D 597  (2000 games)
+  best snapshot of the main training run against the 2.3 network: +129.75 +/- 10.93 (2000 games, W 1041 L 327 D 632); best snapshot of the second stage against the best snapshot of the main run: +7.7 +/- 8.1 (4000 games: +9.4 +/- 11.5 and +6.1 +/- 11.3)
+
+speed (depth-12 bench, one thread, median of 14 runs on a performance core): 3.0 859,322 nodes in 808 ms (1,067,480 nps), 2.3 1,051,844 nodes in 935 ms (1,128,587 nps)
+
+roster estimate (tools/run_add_kestrel.py + rate_new_engine.py, 5s+0.1s, 100 engines, 2 games each): In my own round robin against 100 other engines (5 s + 0.1 s per game, one thread, this laptop, every engine at full speed) 3.0 scored 76.0 of 200 games; fitted onto the CCRL Blitz scale through the engines whose ratings did not change that is about 3576 (95 % bootstrap interval 3552 to 3597), which would put it 71 of 101 in that table. This is an estimate under my own conditions, not a rating-list result.
