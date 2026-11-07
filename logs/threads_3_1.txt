@@ -1,0 +1,159 @@
+Kestrel 3.1: thread tests, scaling measurements and matches, all on one Windows laptop (22 logical processors: 6 performance cores with two threads each, 8 efficiency cores, 2 low-power cores; 31 GB).
+Sections marked (release) were measured with the release exe (id name 'Kestrel 3.1'); sections marked (dev) with the development build of 2026-11-06 (id name 'Kestrel 3.1-dev'), which has no launcher thread and no depth-1 rule
+(see CHANGELOG.md) and otherwise the same search and hash code. The test logs of the release exe are repo_tests_3_1.txt, v3_1_verify_log.txt and the two audit logs.
+
+===== (release) single-thread identity with 3.0, depth 14 (24 positions) =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe identity_check.py kestrel_builds_work_30\windows_x86-64-v3\kestrel.exe kestrel_builds_work_31\windows_x86-64-v3\kestrel.exe   (cwd my_engine\dev\b31mt)
+reference kestrel.exe: 24 positions, total nodes 5712973
+kestrel.exe: uci output differs in 3 line(s) (lengths 25 / 25): ['id name Kestrel 3.1', 'option name Hash type spin default 256 min 1 max 1048576', 'option name Threads type spin default 1 min 1 max 128']
+   depth-14 searches: ALL 24 IDENTICAL (nodes, score, best move, PV) (total nodes 5712973)
+   go nodes 30000 searches: ALL 24 IDENTICAL
+
+===== (release) single-thread identity with 3.0, depth 16 =====
+﻿reference kestrel.exe: 24 positions, total nodes 13062086
+kestrel.exe: uci output differs in 3 line(s) (lengths 25 / 25): ['id name Kestrel 3.1', 'option name Hash type spin default 256 min 1 max 1048576', 'option name Threads type spin default 1 min 1 max 128']
+   depth-16 searches: ALL 24 IDENTICAL (nodes, score, best move, PV) (total nodes 13062086)
+   go nodes 30000 searches: ALL 24 IDENTICAL
+
+===== (release) short searches with many threads: 3.0-style start-up, the depth-1 rule alone, the release (go movetime 60) =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe depth1_compare.py kestrel_builds_work_31\windows_x86-64-v3\kestrel.exe 3.0-style start-up (no rule)=my_engine\dev\b31mt\k31_nodepth1.exe depth-1 rule only=my_engine\dev\b31mt\k31_depth1only.exe   (cwd my_engine\dev\b31mt)
+quiet  3.0-style start-up (no rule) Threads  64, go movetime 60, 60 searches: no depth line  5, last depth 1:  0, stalemating best moves  0, last depth median 13, wall median 41 ms, max 51 ms
+quiet  3.0-style start-up (no rule) Threads 128, go movetime 60, 60 searches: no depth line 31, last depth 1:  0, stalemating best moves  0, last depth median  0, wall median 52 ms, max 127 ms
+quiet  depth-1 rule only          Threads  64, go movetime 60, 60 searches: no depth line  0, last depth 1:  3, stalemating best moves  3, last depth median 13, wall median 49 ms, max 217 ms
+quiet  depth-1 rule only          Threads 128, go movetime 60, 60 searches: no depth line  0, last depth 1: 18, stalemating best moves 18, last depth median  5, wall median 83 ms, max 434 ms
+quiet  release (launcher + rule)  Threads  64, go movetime 60, 60 searches: no depth line  0, last depth 1:  0, stalemating best moves  0, last depth median 12, wall median 49 ms, max 52 ms
+quiet  release (launcher + rule)  Threads 128, go movetime 60, 60 searches: no depth line  0, last depth 1:  0, stalemating best moves  0, last depth median 12, wall median 50 ms, max 328 ms
+loaded 3.0-style start-up (no rule) Threads  64, go movetime 60, 30 searches: no depth line  3, last depth 1:  0, stalemating best moves  0, last depth median 11, wall median 81 ms, max 395 ms
+loaded 3.0-style start-up (no rule) Threads 128, go movetime 60, 30 searches: no depth line 13, last depth 1:  0, stalemating best moves  0, last depth median 11, wall median 110 ms, max 151 ms
+loaded depth-1 rule only          Threads  64, go movetime 60, 30 searches: no depth line  0, last depth 1:  2, stalemating best moves  2, last depth median 11, wall median 77 ms, max 138 ms
+loaded depth-1 rule only          Threads 128, go movetime 60, 30 searches: no depth line  0, last depth 1:  5, stalemating best moves  5, last depth median 11, wall median 501 ms, max 1122 ms
+loaded release (launcher + rule)  Threads  64, go movetime 60, 30 searches: no depth line  0, last depth 1:  0, stalemating best moves  0, last depth median 11, wall median 262 ms, max 389 ms
+loaded release (launcher + rule)  Threads 128, go movetime 60, 30 searches: no depth line  0, last depth 1:  0, stalemating best moves  0, last depth median 11, wall median 831 ms, max 1181 ms
+
+===== (release) thread stress: start / stop / movetime / EOF at 1 to 128 threads =====
+﻿MT-STRESS kestrel.exe: Threads 1, 60 iterations (seed 301): PASS | stop->bestmove latency max 1 ms mean 0 ms (9), movetime overshoot max 2 ms (20) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.01 s), EOF during infinite 0 (0.02 s)
+MT-STRESS kestrel.exe: Threads 2, 60 iterations (seed 302): PASS | stop->bestmove latency max 1 ms mean 0 ms (19), movetime overshoot max -0 ms (15) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.03 s), EOF during infinite 0 (0.01 s)
+MT-STRESS kestrel.exe: Threads 8, 60 iterations (seed 308): PASS | stop->bestmove latency max 1 ms mean 1 ms (10), movetime overshoot max -3 ms (16) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.02 s), EOF during infinite 0 (0.02 s)
+MT-STRESS kestrel.exe: Threads 16, 60 iterations (seed 316): PASS | stop->bestmove latency max 2 ms mean 1 ms (22), movetime overshoot max 1 ms (12) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.02 s), EOF during infinite 0 (0.02 s)
+MT-STRESS kestrel.exe: Threads 32, 60 iterations (seed 332): PASS | stop->bestmove latency max 3 ms mean 2 ms (12), movetime overshoot max 2 ms (14) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.02 s), EOF during infinite 0 (0.03 s)
+MT-STRESS kestrel.exe: Threads 64, 60 iterations (seed 364): PASS | stop->bestmove latency max 5 ms mean 2 ms (14), movetime overshoot max 6 ms (13) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.02 s), EOF during infinite 0 (0.02 s)
+MT-STRESS kestrel.exe: Threads 128, 60 iterations (seed 428): PASS | stop->bestmove latency max 14 ms mean 5 ms (10), movetime overshoot max 16 ms (19) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.03 s), EOF during infinite 0 (0.02 s)
+
+===== (dev) hash tests (16 GB and 8 GB tables, consistency) =====
+Hash 16384 MB: setoption + isready 1.23 s | ws 16449 MB, commit 17240 MB | engine lines: []
+search 30000 ms, 20 threads: wall 29.97 s, last info: info depth 26 score cp 30 nodes 71195272 nps 2649422 hashfull 13 time 26872 pv e2e4 c7c5 g1f3 e7e6 d2d4 c5d4 f3d4 b8c6 b1c3 g8f6 d | bestmove bestmove e2e4
+ucinewgame                   -> readyok after 0.96 s
+setoption name Clear Hash    -> readyok after 0.62 s
+fallback request 32768 MB: readyok after 2.87 s, ws 16541 MB, commit 17240 MB, lines ['info string Hash: limited to 24141 MB (3/4 of the installed memory, 32189 MB)']
+search after the fallback: bestmove e2e4
+exit code 0
+Hash 8192 MB: setoption + isready 0.75 s | ws 8257 MB, commit 9032 MB | engine lines: []
+search 10000 ms, 64 threads: wall 9.97 s, last info: info depth 21 score cp 30 nodes 18397122 nps 3803408 hashfull 8 time 4837 pv e2e4 c7c5 g1f3 e7e6 b1c3 b8c6 d2d4 c5d4 f3d4 g8f6 d4b | bestmove bestmove e2e4
+ucinewgame                   -> readyok after 0.39 s
+setoption name Clear Hash    -> readyok after 0.26 s
+exit code 0
+Hash  1024 MB: nodes [2874456, 2266215, 1037443, 1809332] | hashfull [12, 10, 8, 5] | best ['e2a6', 'f1c4', 'a1e1', 'e5g4'] | 8.5 s
+Hash  4096 MB: nodes [2874456, 2266215, 1037443, 1809332] | hashfull [4, 2, 1, 2] | best ['e2a6', 'f1c4', 'a1e1', 'e5g4'] | 14.4 s
+Hash  8192 MB: nodes [2874456, 2266215, 1037443, 1809332] | hashfull [3, 1, 0, 0] | best ['e2a6', 'f1c4', 'a1e1', 'e5g4'] | 14.1 s
+Hash 16384 MB: nodes [2874456, 2266215, 1037443, 1809332] | hashfull [2, 0, 0, 0] | best ['e2a6', 'f1c4', 'a1e1', 'e5g4'] | 13.2 s
+Hash  4096 vs 1024: node count differences ['+0.0000 %', '+0.0000 %', '+0.0000 %', '+0.0000 %']
+Hash  8192 vs 1024: node count differences ['+0.0000 %', '+0.0000 %', '+0.0000 %', '+0.0000 %']
+Hash 16384 vs 1024: node count differences ['+0.0000 %', '+0.0000 %', '+0.0000 %', '+0.0000 %']
+HASH-CONSISTENCY: PASS (largest difference 0.0000 %)
+
+===== (dev) scaling: nps and time to depth 20 (24 positions, Hash 2048) =====
+depth 20, hash 2048 MB, 21 of 24 positions valid ([8, 21, 23] excluded: the search ended before the depth)
+Threads | wall sum (s) | TTD speedup geo-mean | TTD speedup of sums | nps (M) | nps ratio | nodes ratio | ideal speedup (T / nodes ratio) | same best move
+      1 |         78.7 |                 1.00 |                1.00 |    0.88 |      1.00 |        1.00 |                            1.00 | 21/21
+      2 |         74.3 |                 1.12 |                1.06 |    1.30 |      1.47 |        1.39 |                            1.44 | 17/21
+      4 |         59.3 |                 1.32 |                1.33 |    2.05 |      2.32 |        1.75 |                            2.29 | 15/21
+      8 |         83.6 |                 0.97 |                0.94 |    2.52 |      2.86 |        3.04 |                            2.63 | 17/21
+     16 |         85.8 |                 1.05 |                0.92 |    2.98 |      3.37 |        3.68 |                            4.35 | 15/21
+     20 |         93.6 |                 0.88 |                0.84 |    3.28 |      3.71 |        4.42 |                            4.53 | 16/21
+     32 |        100.8 |                 0.80 |                0.78 |    3.52 |      3.99 |        5.11 |                            6.26 | 16/21
+     64 |        137.1 |                 0.59 |                0.57 |    3.70 |      4.19 |        7.30 |                            8.76 | 15/21
+    128 |        148.9 |                 0.58 |                0.53 |    4.29 |      4.85 |        9.17 |                           13.95 | 17/21
+
+===== (dev) nodes per second with all cores busy =====
+1 processes at the same time: nps per process mean 1154658 (min 1154658, max 1154658), total 1154658  =  x1.00 of one process, per-process efficiency 1.00  (4.0 s)
+2 processes at the same time: nps per process mean 1240120 (min 1228692, max 1251549), total 2480241  =  x2.15 of one process, per-process efficiency 1.07  (4.0 s)
+4 processes at the same time: nps per process mean 1114559 (min 1054924, max 1175751), total 4458237  =  x3.86 of one process, per-process efficiency 0.97  (4.0 s)
+8 processes at the same time: nps per process mean 735723 (min 643906, max 827172), total 5885784  =  x5.10 of one process, per-process efficiency 0.64  (4.0 s)
+16 processes at the same time: nps per process mean 313129 (min 198411, max 528677), total 5010067  =  x4.34 of one process, per-process efficiency 0.27  (4.0 s)
+20 processes at the same time: nps per process mean 301922 (min 100304, max 951918), total 6038441  =  x5.23 of one process, per-process efficiency 0.26  (4.0 s)
+
+===== (release) first info line and start / stop cost =====
+﻿Threads   1: go infinite -> first info line: median 0.5 ms, 90 % 2.8 ms, max 31.4 ms
+Threads   8: go infinite -> first info line: median 0.4 ms, 90 % 1.0 ms, max 1.6 ms
+Threads  22: go infinite -> first info line: median 0.4 ms, 90 % 0.9 ms, max 1.9 ms
+Threads  32: go infinite -> first info line: median 0.4 ms, 90 % 1.2 ms, max 4.6 ms
+Threads  64: go infinite -> first info line: median 0.6 ms, 90 % 1.4 ms, max 15.7 ms
+Threads 128: go infinite -> first info line: median 0.6 ms, 90 % 1.3 ms, max 1.9 ms
+﻿Threads   1: go depth 1 -> bestmove: median 0.4 ms, max 1.3 ms | stop -> bestmove (after 50 ms of go infinite): median 0.2 ms, max 2.1 ms
+Threads   2: go depth 1 -> bestmove: median 0.4 ms, max 1.4 ms | stop -> bestmove (after 50 ms of go infinite): median 0.2 ms, max 0.9 ms
+Threads   8: go depth 1 -> bestmove: median 0.4 ms, max 2.0 ms | stop -> bestmove (after 50 ms of go infinite): median 0.4 ms, max 2.7 ms
+Threads  16: go depth 1 -> bestmove: median 0.5 ms, max 1.5 ms | stop -> bestmove (after 50 ms of go infinite): median 0.7 ms, max 6.2 ms
+Threads  32: go depth 1 -> bestmove: median 0.4 ms, max 1.7 ms | stop -> bestmove (after 50 ms of go infinite): median 1.5 ms, max 2.0 ms
+Threads  64: go depth 1 -> bestmove: median 0.7 ms, max 2.0 ms | stop -> bestmove (after 50 ms of go infinite): median 4.9 ms, max 10.8 ms
+Threads 128: go depth 1 -> bestmove: median 1.0 ms, max 4.1 ms | stop -> bestmove (after 50 ms of go infinite): median 11.1 ms, max 20.3 ms
+
+===== matches: more threads against 1 thread of the same build (10 s + 0.1 s per game; thr8v1_final = the release exe, the others the development build) =====
+11-06 17:48  thr8v1_10p0.1: A=k31e128.exe ['Threads=8'] vs B=k31e128.exe ['Threads=1'], 10+0.1, 100 rounds x2, hash 256 (44 min): Elo of A 123.02 +/- 24.33, games 200, W 85 L 17 D 98 | terminations {'normal': 200}
+11-06 18:28  thr64v1_10p0.1: A=k31e128.exe ['Threads=64'] vs B=k31e128.exe ['Threads=1'], 10+0.1, 16 rounds x2, hash 256 (14 min): Elo of A 10.86 +/- 71.44, games 32, W 7 L 6 D 19 | terminations {'normal': 32}
+11-06 18:42  thr128v1_10p0.1: A=k31e128.exe ['Threads=128'] vs B=k31e128.exe ['Threads=1'], 10+0.1, 16 rounds x2, hash 256 (14 min): Elo of A 10.86 +/- 56.60, games 32, W 8 L 7 D 17 | terminations {'time forfeit': 1, 'normal': 31}
+11-07 23:01  thr8v1_final: A=kestrel.exe ['Threads=8'] vs B=kestrel.exe ['Threads=1'], 10+0.1, 50 rounds x2, hash 256 (21 min): Elo of A 107.54 +/- 38.35, games 100, W 38 L 8 D 54 | terminations {'normal': 100}
+
+===== (dev) AddressSanitizer + UBSan run of the development build =====
+PASS ASan/UBSan bench 12 completes   bench: nodes 459575 time 18718 ms nps 24552
+PASS many-thread stress, Threads 2   (7 s) MT-STRESS k31e128_asan.exe: Threads 2, 30 iterations (seed 2): PASS | stop->bestmove latency max 1 ms mean 1 ms (4), movetime overshoot max 60 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.13 s), EOF during inf
+PASS many-thread stress, Threads 8   (8 s) MT-STRESS k31e128_asan.exe: Threads 8, 30 iterations (seed 8): PASS | stop->bestmove latency max 32 ms mean 8 ms (6), movetime overshoot max 153 ms (10) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.13 s), EOF during 
+PASS many-thread stress, Threads 16   (6 s) MT-STRESS k31e128_asan.exe: Threads 16, 30 iterations (seed 16): PASS | stop->bestmove latency max 7 ms mean 3 ms (3), movetime overshoot max 102 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.07 s), EOF during 
+PASS many-thread stress, Threads 32   (7 s) MT-STRESS k31e128_asan.exe: Threads 32, 30 iterations (seed 32): PASS | stop->bestmove latency max 9 ms mean 6 ms (5), movetime overshoot max 119 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.08 s), EOF during 
+PASS many-thread stress, Threads 64   (7 s) MT-STRESS k31e128_asan.exe: Threads 64, 30 iterations (seed 64): PASS | stop->bestmove latency max 18 ms mean 11 ms (4), movetime overshoot max 80 ms (11) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.11 s), EOF durin
+PASS many-thread stress, Threads 128   (11 s) MT-STRESS k31e128_asan.exe: Threads 128, 30 iterations (seed 128): PASS | stop->bestmove latency max 25 ms mean 18 ms (8), movetime overshoot max 55 ms (6) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.13 s), EOF duri
+PASS hash 1024 MB (parallel zeroing) + search + ucinewgame, 16 threads   (5 s) search 2000 ms, 16 threads: wall 1.98 s, last info: info depth 14 score cp 26 nodes 668309 nps 365795 hashfull 1 time 1827 pv e2e4 c7c5 g1f3 e7e6 b1c3 b8c6 d2d4 c5d4 f3d4 g8f6 f1e2 d | bestmove bestmove e2e4 | ucinewgame                   -> readyok after 0.06 s | setoption name Clear Hash    -> readyok after 0.04 s | exit code 0
+PASS UCI fuzzer (16 threads by default)   (212 s) sequences 300 | failures 0
+PASS PV legality / mate consistency (16 threads by default)   (29 s) positions 80 | info lines checked 685 | mate lines 145 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS stress_stop.py 400 iterations, Threads 16   (4 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS stress_stop.py 400 iterations, Threads 64   (3 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS stress_stop.py 400 iterations, Threads 128   (4 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS breakers.py --quick (perft, mate, forced, deep, fuzz), --threads 8   (47 s) fuzz      40 checks, 0 problems,    7 s | breakers: PASS  (175 checks, 47 s, quick)
+PASS breakers.py --quick (perft, mate, forced, deep, fuzz), --threads 64   (114 s) fuzz      40 checks, 0 problems,   17 s | breakers: PASS  (175 checks, 113 s, quick)
+PASS race_test.py 20 runs (go infinite + immediate stop; Threads 1)   (32 s) runs 20 hung (no bestmove within 5 s): 0 | slowest start 2.2 s
+FAIL edge_test.py   (445 s) PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: engine exited with code 1 | PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: stderr: kestrel31e_t128.cpp:584:72: runtime error: shift exponent -8 is negative | SUMMARY: UndefinedBehaviorSanitizer: undefined-behavior kestrel31e_t128.cpp:584 | cases 303 | problems 8 | 444s
+   ... PROBLEM [position fen k7/8/8/8/8/8/8/K7 w - - 99999999999 1 + go movetime 50]: stderr: kestrel31e_t128.cpp:665:58: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go depth 4]: engine exited with code 1
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go depth 4]: stderr: kestrel31e_t128.cpp:584:72: runtime error: shift exponent -8 is negative | SUMMARY: UndefinedBehav
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: engine exited with code 1
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: stderr: kestrel31e_t128.cpp:584:72: runtime error: shift exponent -8 is negative | SUMMARY: UndefinedB
+   cases 303 | problems 8 | 444s
+
+e128: 17 steps, 1 failed, 16 min
+
+===== (release) AddressSanitizer + UBSan run of the release source =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe asan_suite.py k31_final_asan.exe k31final   (cwd my_engine\dev\b31mt)
+PASS ASan/UBSan bench 12 completes   bench: nodes 288450 time 9304 ms nps 31002
+PASS many-thread stress, Threads 2   (6 s) MT-STRESS k31_final_asan.exe: Threads 2, 30 iterations (seed 2): PASS | stop->bestmove latency max 31 ms mean 8 ms (4), movetime overshoot max 27 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.07 s), EOF during 
+PASS many-thread stress, Threads 8   (6 s) MT-STRESS k31_final_asan.exe: Threads 8, 30 iterations (seed 8): PASS | stop->bestmove latency max 2 ms mean 1 ms (6), movetime overshoot max 38 ms (10) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.07 s), EOF during 
+PASS many-thread stress, Threads 16   (6 s) MT-STRESS k31_final_asan.exe: Threads 16, 30 iterations (seed 16): PASS | stop->bestmove latency max 20 ms mean 14 ms (3), movetime overshoot max 38 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.08 s), EOF duri
+PASS many-thread stress, Threads 32   (6 s) MT-STRESS k31_final_asan.exe: Threads 32, 30 iterations (seed 32): PASS | stop->bestmove latency max 4 ms mean 3 ms (5), movetime overshoot max 49 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.08 s), EOF during
+PASS many-thread stress, Threads 64   (6 s) MT-STRESS k31_final_asan.exe: Threads 64, 30 iterations (seed 64): PASS | stop->bestmove latency max 8 ms mean 6 ms (4), movetime overshoot max 49 ms (11) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.09 s), EOF durin
+PASS many-thread stress, Threads 128   (7 s) MT-STRESS k31_final_asan.exe: Threads 128, 30 iterations (seed 128): PASS | stop->bestmove latency max 115 ms mean 24 ms (8), movetime overshoot max 42 ms (6) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.09 s), EOF d
+PASS hash 1024 MB (parallel zeroing) + search + ucinewgame, 16 threads   (4 s) search 2000 ms, 16 threads: wall 1.97 s, last info: info depth 13 score cp 24 nodes 665512 nps 452421 hashfull 0 time 1471 pv e2e4 e7e6 d2d4 d7d5 b1c3 g8f6 e4e5 f6d7 c3e2 c7c5 c2c3 d | bestmove bestmove e2e4 | ucinewgame                   -> readyok after 0.06 s | setoption name Clear Hash    -> readyok after 0.04 s | exit code 0
+PASS UCI fuzzer (16 threads by default)   (197 s) sequences 300 | failures 0
+PASS PV legality / mate consistency (16 threads by default)   (20 s) positions 80 | info lines checked 687 | mate lines 142 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS stress_stop.py 400 iterations, Threads 16   (4 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS stress_stop.py 400 iterations, Threads 64   (3 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS stress_stop.py 400 iterations, Threads 128   (3 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS breakers.py --quick (perft, mate, forced, deep, fuzz), --threads 8   (32 s) fuzz      40 checks, 0 problems,    5 s | breakers: PASS  (175 checks, 32 s, quick)
+PASS breakers.py --quick (perft, mate, forced, deep, fuzz), --threads 64   (85 s) fuzz      40 checks, 0 problems,    6 s | breakers: PASS  (175 checks, 85 s, quick)
+PASS race_test.py 20 runs (go infinite + immediate stop; Threads 1)   (9 s) runs 20 hung (no bestmove within 5 s): 0 | slowest start 0.6 s
+FAIL edge_test.py   (281 s) PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: engine exited with code 1 | PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: stderr: my_engine\final_kestrel_3_1\kestrel_3_1.cpp:584:72: runtime error: shift exponent -8 is negative | cases 303 | problems 8 | 281s
+   ... PROBLEM [position fen k7/8/8/8/8/8/8/K7 w - - 99999999999 1 + go movetime 50]: stderr: my_engine\final_kestrel_3_1\kestrel_3_1.cpp:665:58: run
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go depth 4]: engine exited with code 1
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go depth 4]: stderr: my_engine\final_kestrel_3_1\kestrel_3_1.
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: engine exited with code 1
+   PROBLEM [position fen rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 + go movetime 50]: stderr: my_engine\final_kestrel_3_1\kestrel_
+   cases 303 | problems 8 | 281s
+
+k31final: 17 steps, 1 failed, 11 min

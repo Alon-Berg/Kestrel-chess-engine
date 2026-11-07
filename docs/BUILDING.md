@@ -70,3 +70,17 @@ The network is not stored in the git history: download `kestrel_net_3_0.bin` fro
 Nothing else changes for 3.0: the AVX2 evaluation code is compiled only when the compiler targets AVX2 and FMA, every other target uses plain loops with exactly the same results (depth-12 bench = 859,322 nodes on all three Windows builds). Syzygy tablebases need no compile option: Fathom is part of the file and is switched on at run time by the option `SyzygyPath` (see `docs/SYZYGY.md`). The Windows release exes are stripped and carry the version-info block as described above.
 
 Tested for 3.0 (Windows x86-64-v3, logs in `logs/`): the 30-check verification with AddressSanitizer / UBSan, also with 4 threads, and the Syzygy test (`v3_0_verify_log.txt`, 30 of 30), the two audits (`audit_probe_3_0_output.txt`, 83 of 83; `audit_sem_3_0_output.txt`, 31 of 31), the options test (20 options, 0 differences) and, with the 3-4-5-men files, `tests/tb_test.py` (1,500 positions, 0 mismatches against python-chess; conversion 30 of 30). The Linux and macOS builds were compiled with Zig (clang) and checked for file format; the GitHub Actions workflow runs the published files and the source on GitHub's machines.
+
+## Kestrel 3.1
+
+`src/kestrel_3_1.cpp` is the whole engine with 128 copies of the search (4.1 MB, about 78,900 lines). It is generated from `src/kestrel_3_0.cpp` by `scripts/make_threads.py`: `python scripts/make_threads.py 128 src/kestrel_3_1.cpp --id-name "Kestrel 3.1"` writes the file byte for byte (the script checks that the copies are identical and prints the few places where its output differs from its input; the number of copies must be at least 8, and only 64 and 128 were built and tested). The network is the one of 3.0: download `kestrel_net_3_1.bin` (the same file as `kestrel_net_3_0.bin`) from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
+
+| Target | Compile with |
+|---|---|
+| Windows / Linux x86-64-v3 (AVX2 + BMI2) | `g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_3_1.cpp` |
+| x86-64-v2, plain x86-64 | same with `-march=x86-64-v2` or `-march=x86-64` (plain evaluation loops, about 37 % slower) |
+| ARM64, macOS, Linux cross builds | as for 1.1 above with `kestrel_3_1.cpp` (compiled with Zig; not run before the release) |
+
+Compiling this file costs more than 3.0: g++ -O3 needs about 136 s and 1.1 GB of memory on a fast PC (3.0: 16 s, 0.5 GB; a 64-copy file of 2.2 MB: 69 s and 0.8 GB), Zig (clang) 55 - 71 s and 2.3 GB; no compiler limit was reached. The Windows x86-64-v3 exe is about 82 MB (3.0: 88.4 MB). Every search copy reserves 6.3 MB of address space, so a process commits about 0.84 GB when it starts (3.0: 79 MB) although a one-thread game touches only the first copy. The depth-12 bench is 859,322 nodes on all three Windows builds, as in 3.0.
+
+Tested for 3.1 (Windows x86-64-v3, logs in `logs/`): `threads_3_1.txt` (thread tests, scaling measurements and matches), `repo_tests_3_1.txt` (the test scripts of `tests/`, among them `breakers.py` with 1, 8 and 64 threads), `v3_1_verify_log.txt` (the sanitizer verification), `audit_probe_3_1_output.txt` (83 of 83) and `audit_sem_3_1_output.txt` (31 of 31). The Linux and macOS builds were compiled with Zig (clang) and checked for file format; the GitHub Actions workflow runs the published files and the source on GitHub's machines.

@@ -1,0 +1,33 @@
+PASS  no legal move (stalemate): bestmove line  | bestmove 0000
+PASS  no legal move (checkmate): bestmove line  | bestmove 0000
+PASS  clock 99, mate in 1 available: plays Rh8#  | ('bestmove h1h8', ('mate', 1))
+PASS  clock 100, mate in 1: like Stockfish the mate counts  | ('bestmove h1h8', ('mate', 1))
+PASS  clock 98, mate in 1: still mate  | ('mate', 1)
+PASS  clock 97, long win (KRK): not a mate score  | ('cp', 0)
+PASS  insufficient material KvK: draw score  | ('cp', 0)
+PASS  insufficient material KNvK: draw score  | ('cp', 0)
+PASS  insufficient material KBvK: draw score  | ('cp', 0)
+PASS  insufficient material KB v KB (same colour): draw score  | ('cp', 0)
+PASS  insufficient material KNNvK: draw score  | ('cp', 0)
+PASS  searchmoves e2e4 d2d4  | bestmove d2d4
+PASS  searchmoves a2a3  | bestmove a2a3
+PASS  searchmoves g1f3 b1c3 h2h3  | bestmove g1f3
+PASS  go mate 1: Rd8#  | bestmove d1d8
+PASS  go mate 1: Qxf7#  | bestmove h5f7
+PASS  go mate 3 (known mate in 3 w/ Qxf7 line): stops with a mate score  | (('mate', 2), '0.3s')
+PASS  MultiPV 3 on rnbqkbnr/pppppppp/8/8/8/: 3 lines, legal PVs, distinct first moves, sorted  | (3, 20, [18, 18, 18])
+PASS  MultiPV 3 on r3k2r/p1ppqpb1/bn2pnp1/3: 3 lines, legal PVs, distinct first moves, sorted  | (3, 48, [-174, -211, -325])
+PASS  MultiPV 3 on 8/2p5/3p4/KP5r/1R3p1k/8/: 3 lines, legal PVs, distinct first moves, sorted  | (3, 14, [26, 10, 1])
+PASS  MultiPV 3 on 4k3/8/8/8/8/8/8/4K2R w K: 3 lines, legal PVs, distinct first moves, sorted  | (3, 15, [475, 475, 475])
+PASS  MultiPV 3 on 7k/8/8/8/8/8/6P1/6K1 w -: 3 lines, legal PVs, distinct first moves, sorted  | (3, 6, [403, 378, 11])
+PASS  info lines: depth monotonic, seldepth>=depth, WDL sums to 1000, hashfull in range
+PASS  ponder: no bestmove before ponderhit / stop  | ['info depth 20 score cp 42 nodes 1524073 nps 1083977 hashfull 22 time 1406 pv g1f3 g8f6 f3e5 d7d6 e5f3 f6e4 d2d4 d6d5 f1d3 b8c6 e1g1 f8e7 f1e1 e4f6 c1g5 e8g8 c2c3 h7h6 g5h4 f6e4 h4e7 c6e7 b1d2']
+PASS  ponder: bestmove after ponderhit  | ['bestmove g1f3 ponder b8c6']
+PASS  ponder: stop gives a bestmove  | ['bestmove b8c6 ponder f1b5']
+PASS  UCI_LimitStrength 1320: legal bestmove within the clock  | ('bestmove d2d4', '0.0s')
+PASS  promotion to queen when winning  | bestmove a1a2 | pv a1a2 h7g7 a7a8q g7f6
+PASS  promotion with check/underpromotion options handled  | bestmove a2a1q
+PASS  en passant position: legal bestmove  | bestmove d4e3
+PASS  castling position: legal bestmove  | bestmove a1a8
+
+31 checks, 0 failed
