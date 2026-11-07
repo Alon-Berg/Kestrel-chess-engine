@@ -11,16 +11,18 @@ on:
       tag:
         description: "Release tag whose published files are tested"
         required: false
-        default: "v3.0"
+        default: "v3.1"
   push:
     paths:
       - ".github/workflows/verify-release.yml"
       - "tests/**"
+      - "scripts/**"
       - "src/kestrel_3_0.cpp"
+      - "src/kestrel_3_1.cpp"
 
 env:
   REPO: Alon-Berg/Kestrel-chess-engine
-  TAG: ${{ github.event.inputs.tag || 'v3.0' }}
+  TAG: ${{ github.event.inputs.tag || 'v3.1' }}
 
 jobs:
   shipped-binaries:
@@ -56,18 +58,29 @@ jobs:
           uname -a || true
       - name: Depth-12 bench must give the recorded node count
         run: |
-          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0) EXPECT=859322;; *) EXPECT="";; esac
+          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0|v3.1) EXPECT=859322;; *) EXPECT="";; esac
           OUT=$("$EXE" bench 12 | tail -n 1); echo "$OUT"
           if [ -n "$EXPECT" ]; then echo "$OUT" | grep -q "nodes $EXPECT " || { echo "bench differs from $EXPECT"; exit 1; }; fi
       - name: UCI smoke test
         run: |
           printf 'uci\nisready\nposition startpos moves e2e4 e7e5\ngo depth 10\nquit\n' | "$EXE" | tee uci.txt
           grep -q '^uciok' uci.txt && grep -q '^readyok' uci.txt && grep -q '^bestmove ' uci.txt
+      - name: 128 threads and a 2 GB hash (3.1 and later)
+        if: ${{ !startsWith(env.TAG, 'v3.0') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          printf 'uci\nsetoption name Threads value 128\nsetoption name Hash value 2048\nisready\nposition startpos\ngo movetime 3000\nquit\n' | "$EXE" | tee thr.txt
+          grep -q 'option name Threads type spin default 1 min 1 max 128' thr.txt
+          grep -q '^readyok' thr.txt && grep -q '^bestmove ' thr.txt
+      - name: A hash request above the installed memory is cut (Linux, 3.1 and later)
+        if: ${{ runner.os == 'Linux' && !startsWith(env.TAG, 'v3.0') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          printf 'uci\nsetoption name Hash value 1000000\nisready\nquit\n' | "$EXE" | tee hash.txt
+          grep -q '^info string Hash: limited to' hash.txt && grep -q '^readyok' hash.txt
 
   tablebases:
     name: Syzygy on ${{ matrix.asset }}
     # Syzygy support starts with 3.0
-    if: ${{ !startsWith(github.event.inputs.tag || 'v3.0', 'v2.') && !startsWith(github.event.inputs.tag || 'v3.0', 'v1.') }}
+    if: ${{ !startsWith(github.event.inputs.tag || 'v3.1', 'v2.') && !startsWith(github.event.inputs.tag || 'v3.1', 'v1.') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -183,6 +196,28 @@ jobs:
           grep -E "OK" o.txt
           python tests/longlist_test.py "$EXE" | tee o.txt
           grep -F "alive: True" o.txt
+      - name: Thread start / stop stress with 64 and 128 threads (3.1 and later)
+        if: ${{ !startsWith(env.TAG, 'v3.0') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          python tests/stress_stop.py "$EXE" 300 12 64 | tee o.txt
+          grep -E "OK" o.txt
+          python tests/stress_stop.py "$EXE" 300 13 128 | tee o.txt
+          grep -E "OK" o.txt
+      - name: Positions that break engines with 8 threads (3.1 and later)
+        if: ${{ !startsWith(env.TAG, 'v3.0') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          python tests/breakers.py "$EXE" --threads 8 | tee o.txt
+          grep -F "breakers: PASS" o.txt
+      - name: Short searches with 128 threads still search (3.1 and later)
+        if: ${{ !startsWith(env.TAG, 'v3.0') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          python tests/depth1_test.py "$EXE" 128 40 60 | tee o.txt
+          grep -F "depth1_test: PASS" o.txt
+      - name: Positions that break engines (perft on hard positions, mate and stalemate traps, odd inputs, random positions)
+        if: ${{ !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          python tests/breakers.py "$EXE" | tee o.txt
+          grep -F "breakers: PASS" o.txt
 
   sanitizers:
     name: AddressSanitizer + UBSan on Linux
@@ -200,7 +235,7 @@ jobs:
       - name: Network file
         run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v3.0/kestrel_net_3_0.bin"
       - name: Compile with clang, AddressSanitizer and UBSan
-        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_3_0.cpp
+        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_3_1.cpp
       - name: Accumulator self-test under the sanitizers
         run: |
           set +e
@@ -228,6 +263,18 @@ jobs:
         run: |
           python tests/uci_fuzz.py ./kestrel_asan 200 7 | tee o.txt
           grep -q "failures 0" o.txt
+      - name: Positions that break engines under the sanitizers (without the halfmove clocks of 2^31 and more, where 3.0 overflows an int)
+        if: ${{ always() }}
+        run: |
+          python tests/breakers.py ./kestrel_asan --quick --only perft,mate,forced,deep,fuzz --timeout 300 | tee o.txt
+          grep -F "breakers: PASS" o.txt
+      - name: Thread start / stop stress under the sanitizers (16 and 128 threads)
+        if: ${{ always() }}
+        run: |
+          python tests/stress_stop.py ./kestrel_asan 200 5 16 | tee o.txt
+          grep -E "OK" o.txt
+          python tests/stress_stop.py ./kestrel_asan 200 6 128 | tee o.txt
+          grep -E "OK" o.txt
       - name: Syzygy (3 and 4 men) under the sanitizers
         if: ${{ always() }}
         run: |
@@ -252,14 +299,22 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Network file (the network of 3.0; the assembler reads it from the current directory)
+      - name: Network file (the network of 3.0, which is also the network of 3.1; the assembler reads it from the current directory)
         run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v3.0/kestrel_net_3_0.bin"
-      - name: Compile src/kestrel_3_0.cpp
+      - name: src/kestrel_3_1.cpp must be the output of scripts/make_threads.py
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_0.cpp
-          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_0.cpp; fi
+          python3 scripts/make_threads.py 128 generated.cpp --id-name "Kestrel 3.1"
+          cmp generated.cpp src/kestrel_3_1.cpp
+      - name: Compile src/kestrel_3_1.cpp
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_1.cpp
+          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_1.cpp; fi
       - name: Depth-12 bench must give the number recorded in tests/BENCH
         run: |
           EXPECT=$(tr -d '\r\n ' < tests/BENCH)
           OUT=$(./kestrel bench 12 | tail -n 1); echo "$OUT"
           echo "$OUT" | grep -q "nodes $EXPECT "
+      - name: 128 threads and a 2 GB hash
+        run: |
+          printf 'uci\nsetoption name Threads value 128\nsetoption name Hash value 2048\nisready\nposition startpos\ngo movetime 3000\nquit\n' | ./kestrel | tee thr.txt
+          grep -q '^readyok' thr.txt && grep -q '^bestmove ' thr.txt
