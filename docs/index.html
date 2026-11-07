@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kestrel Chess Engine</title>
-<meta name="description" content="Kestrel is a UCI chess engine in one C++17 file. Version 3.0 evaluates every position with one large neural network and reads Syzygy tablebases.">
+<meta name="description" content="Kestrel is a UCI chess engine in one C++17 file. Version 3.1 evaluates every position with one large neural network, reads Syzygy tablebases and searches with up to 128 threads.">
 <style>
 /* Layout: an instrument panel. A left-aligned wordmark, a real UCI session as the opening, measurements drawn to scale. Amber marks what was measured. */
 :root{
@@ -99,24 +99,24 @@ footer p{margin:.4rem 0;max-width:46rem}
   <div>
     <p class="eyebrow">UCI chess engine &middot; MIT licence &middot; Made by Claude</p>
     <h1>Kestrel</h1>
-    <p class="lead">A chess engine in one C++17 file. Version 3.0 judges every position with a single 76 MB neural network, trained on far more positions than before, and reads Syzygy tablebases.</p>
-    <div class="cta"><a class="btn main" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v3.0">Download 3.0</a><a class="btn" href="#versions">Older versions</a><a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine">Source on GitHub</a></div>
-    <p class="fine">For Windows, Linux and macOS; the Linux builds and the Apple Silicon build are run and checked on GitHub Actions.</p>
+    <p class="lead">A chess engine in one C++17 file. Version 3.1 judges every position with a single 76 MB neural network, reads Syzygy tablebases and searches with up to 128 threads and a hash of up to 1,048,576 MB.</p>
+    <div class="cta"><a class="btn main" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v3.1">Download 3.1</a><a class="btn" href="#versions">Older versions</a><a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine">Source on GitHub</a></div>
+    <p class="fine">For Windows, Linux and macOS; the Linux builds and both Mac builds are run and checked on GitHub Actions.</p>
   </div>
   <div>
 <pre class="term" aria-label="Example UCI session"><span class="dim">$</span> kestrel
 <span class="in">&gt; uci</span>
-<b>id name Kestrel 3.0</b>
+<b>id name Kestrel 3.1</b>
 id author Claude
 uciok
 <span class="in">&gt; position startpos</span>
 <span class="in">&gt; go depth 13</span>
-info depth 5  score cp 32  nodes 618     time 9    pv d2d4 d7d5 c2c4 g8f6 c4d5
-info depth 8  score cp 30  nodes 9491    time 68   pv e2e4 e7e5 g1f3 b8c6 b1c3 g8f6
-info depth 11 score cp 21  nodes 31894   time 203  pv g1f3 c7c5 e2e4 b8c6 b1c3 e7e6
-info depth 13 score cp 20  nodes 82820   time 514  pv d2d4 d7d5 c2c4 e7e6 b1c3 g8f6
+info depth 5  score cp 32  nodes 618     time 1    pv d2d4 d7d5 c2c4 g8f6 c4d5
+info depth 8  score cp 30  nodes 9491    time 8    pv e2e4 e7e5 g1f3 b8c6 b1c3 g8f6
+info depth 11 score cp 21  nodes 31894   time 23   pv g1f3 c7c5 e2e4 b8c6 b1c3 e7e6
+info depth 13 score cp 20  nodes 82820   time 60   pv d2d4 d7d5 c2c4 e7e6 b1c3 g8f6
 <b>bestmove d2d4</b></pre>
-    <p class="cap">Output of Kestrel 3.0 (Windows build), some fields left out.</p>
+    <p class="cap">Output of Kestrel 3.1 (Windows build), some fields left out.</p>
   </div>
 </div>
 </div>
@@ -124,10 +124,10 @@ info depth 13 score cp 20  nodes 82820   time 514  pv d2d4 d7d5 c2c4 e7e6 b1c3 g
 <div class="wrap">
 <section style="padding-top:2rem">
   <dl class="facts">
-    <div><dt>88 MB</dt><dd>the Windows exe, network included</dd></div>
+    <div><dt>82 MB</dt><dd>the Windows exe, network included</dd></div>
     <div><dt>39 million</dt><dd>parameters in the network</dd></div>
     <div><dt>2.6 billion</dt><dd>training positions (238 M from Lichess, 2.36 B along its best lines, 6.6 M from Kestrel's own games)</dd></div>
-    <div><dt>8</dt><dd>search threads at most</dd></div>
+    <div><dt>128</dt><dd>search threads at most</dd></div>
   </dl>
 </section>
 
@@ -137,31 +137,32 @@ info depth 13 score cp 20  nodes 82820   time 514  pv d2d4 d7d5 c2c4 e7e6 b1c3 g
   <div class="cards">
     <article class="card new">
       <span class="tag">Latest</span>
-      <h3>Kestrel 3.0</h3>
-      <p>A much stronger network of the same size, trained on about nine times more positions: +130 ± 8 Elo ahead of 2.3 over six time controls (3,800 games). New: Syzygy tablebases, a faster search to the same depth, and a few fixes. Same options as 2.3, plus four for the tablebases.</p>
-      <a class="btn main" href="#download">Choose a file</a> <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v3.0">Release notes</a>
+      <h3>Kestrel 3.1</h3>
+      <p>Up to 128 search threads and a hash of up to 1,048,576 MB, for computers with many cores. Everything else is 3.0: with one thread it plays exactly like it. 8 threads score about +110 to +120 Elo against 1 thread (300 games); more threads than the computer has processors do not help. Same options as 3.0; Threads and Hash go much higher.</p>
+      <a class="btn main" href="#download">Choose a file</a> <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v3.1">Release notes</a>
     </article>
     <article class="card">
       <span class="tag">Previous</span>
-      <h3>Kestrel 2.3</h3>
-      <p>One large network replaces the two small ones and the hand-written evaluation of 1.1: about 37 Elo ahead of 1.1 over all the time controls tested. 2.3 is 2.0 with two bugs fixed (an overflow in the endgame evaluation, and options declared with wrong defaults) and new default settings: Hash 256 MB, no opening book, no position learning. The search is the same as in 3.0; only the network is older and there are no tablebases.</p>
-      <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v2.3">Downloads for 2.3</a>
+      <h3>Kestrel 3.0</h3>
+      <p>A much stronger network of the same size, trained on about nine times more positions: +130 ± 8 Elo ahead of 2.3 over six time controls (3,800 games). New: Syzygy tablebases, a faster search to the same depth, and a few fixes. Same options as 2.3, plus four for the tablebases.</p>
+      <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v3.0">Downloads for 3.0</a>
     </article>
     <article class="card">
       <span class="tag">Older</span>
-      <h3>Kestrel 1.1</h3>
-      <p>Two small networks blended with a hand-written evaluation. The exe is about 13 MB. It fixes the evaluation of two knights against a bare king and the thread-stack and file-path problems of 1.0 on Linux and macOS.</p>
-      <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v1.0">Downloads for 1.1</a>
+      <h3>Kestrel 2.3 and 1.1</h3>
+      <p>2.3 has one large network (about 37 Elo ahead of 1.1 over all the time controls tested), a search like 3.x and no tablebases. 1.1 has two small networks blended with a hand-written evaluation; its exe is about 13 MB.</p>
+      <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v2.3">Downloads for 2.3</a> <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v1.0">Downloads for 1.1</a>
     </article>
   </div>
 </section>
 
 <section id="strength">
   <h2>How strong is it?</h2>
-  <p class="intro">Kestrel 3.0 against Kestrel 2.3, the packaged x86-64-v3 builds, one thread each, 3,800 games over six time controls (base + increment in seconds). A dot is the measured Elo of 3.0, the bar is the 95 % interval; right of zero means 3.0 is stronger.</p>
+  <p class="intro">Kestrel 3.0 against Kestrel 2.3, the packaged x86-64-v3 builds, one thread each, 3,800 games over six time controls (base + increment in seconds). A dot is the measured Elo of 3.0, the bar is the 95 % interval; right of zero means 3.0 is stronger. Kestrel 3.1 plays exactly like 3.0 with one thread, so this is its strength with one thread too.</p>
   <div class="plotbox"><svg class="plot" viewBox="0 0 680 294" role="img" aria-labelledby="plot-t plot-d" xmlns="http://www.w3.org/2000/svg"><title id="plot-t">Elo of Kestrel 3.0 against Kestrel 2.3</title><desc id="plot-d">6 results with their 95 percent intervals; the numbers are in the table below.</desc><line class="grid" x1="168.0" x2="168.0" y1="30" y2="236"/><text class="tick" x="168.0" y="256" text-anchor="middle">-40</text><line class="zero" x1="229.0" x2="229.0" y1="30" y2="236"/><text class="tick" x="229.0" y="256" text-anchor="middle">0</text><line class="grid" x1="290.0" x2="290.0" y1="30" y2="236"/><text class="tick" x="290.0" y="256" text-anchor="middle">+40</text><line class="grid" x1="351.0" x2="351.0" y1="30" y2="236"/><text class="tick" x="351.0" y="256" text-anchor="middle">+80</text><line class="grid" x1="412.0" x2="412.0" y1="30" y2="236"/><text class="tick" x="412.0" y="256" text-anchor="middle">+120</text><line class="grid" x1="473.0" x2="473.0" y1="30" y2="236"/><text class="tick" x="473.0" y="256" text-anchor="middle">+160</text><line class="grid" x1="534.0" x2="534.0" y1="30" y2="236"/><text class="tick" x="534.0" y="256" text-anchor="middle">+200</text><line class="grid" x1="595.0" x2="595.0" y1="30" y2="236"/><text class="tick" x="595.0" y="256" text-anchor="middle">+240</text><line class="grid" x1="656.0" x2="656.0" y1="30" y2="236"/><text class="tick" x="656.0" y="256" text-anchor="middle">+280</text><text class="grp" x="8" y="24">against Kestrel 2.3</text><text class="lab" x="160" y="56" text-anchor="end">1+0.01</text><line class="wh sig" x1="487.6" x2="557.2" y1="52" y2="52"/><line class="wh sig" x1="487.6" x2="487.6" y1="47" y2="57"/><line class="wh sig" x1="557.2" x2="557.2" y1="47" y2="57"/><circle class="pt sig" cx="522.4" cy="52" r="6"/><text class="val" x="567.2" y="56">+192 ± 23</text><text class="lab" x="160" y="86" text-anchor="end">2+0.02</text><line class="wh sig" x1="422.2" x2="493.2" y1="82" y2="82"/><line class="wh sig" x1="422.2" x2="422.2" y1="77" y2="87"/><line class="wh sig" x1="493.2" x2="493.2" y1="77" y2="87"/><circle class="pt sig" cx="457.7" cy="82" r="6"/><text class="val" x="503.2" y="86">+150 ± 23</text><text class="lab" x="160" y="116" text-anchor="end">3+0.03</text><line class="wh sig" x1="426.2" x2="476.9" y1="112" y2="112"/><line class="wh sig" x1="426.2" x2="426.2" y1="107" y2="117"/><line class="wh sig" x1="476.9" x2="476.9" y1="107" y2="117"/><circle class="pt sig" cx="451.6" cy="112" r="6"/><text class="val" x="486.9" y="116">+146 ± 17</text><text class="lab" x="160" y="146" text-anchor="end">5+0.1</text><line class="wh sig" x1="367.6" x2="411.4" y1="142" y2="142"/><line class="wh sig" x1="367.6" x2="367.6" y1="137" y2="147"/><line class="wh sig" x1="411.4" x2="411.4" y1="137" y2="147"/><circle class="pt sig" cx="389.5" cy="142" r="6"/><text class="val" x="421.4" y="146">+105 ± 14</text><text class="lab" x="160" y="176" text-anchor="end">10+0.1</text><line class="wh sig" x1="351.2" x2="417.4" y1="172" y2="172"/><line class="wh sig" x1="351.2" x2="351.2" y1="167" y2="177"/><line class="wh sig" x1="417.4" x2="417.4" y1="167" y2="177"/><circle class="pt sig" cx="384.3" cy="172" r="6"/><text class="val" x="427.4" y="176">+102 ± 22</text><text class="lab" x="160" y="206" text-anchor="end">20+0.5</text><line class="wh sig" x1="341.0" x2="427.7" y1="202" y2="202"/><line class="wh sig" x1="341.0" x2="341.0" y1="197" y2="207"/><line class="wh sig" x1="427.7" x2="427.7" y1="197" y2="207"/><circle class="pt sig" cx="384.3" cy="202" r="6"/><text class="val" x="437.7" y="206">+102 ± 28</text><text class="axis" x="412.0" y="284" text-anchor="middle">Elo of 3.0 (95 % interval); right of 0 = 3.0 is stronger</text></svg></div>
   <ul class="plain">
     <li>Pooled over all time controls: <strong>+130 ± 8 Elo</strong> (3,800 games). The gain is largest at the shortest time controls and levels off: from 5 s + 0.1 s per game on it is <strong>+104 ± 11 Elo</strong> (1,600 games).</li>
+    <li>More threads (3.1): 8 threads score <strong>+123 ± 24 Elo</strong> against 1 thread of the same build at 10 s + 0.1 s per game (200 games with a development build, a laptop with 22 logical processors) and <strong>+108 ± 38 Elo</strong> with the release exe (100 games). 64 and 128 threads on those 22 processors gain nothing (+11 ± 71 and +11 ± 57, 32 games each): use at most as many threads as the computer has logical processors. Lazy SMP does not scale linearly (nodes per second 2.9 times higher with 8 threads, 3.7 times with 20), and I could not test a computer with many more processors.</li>
     <li>The two networks inside the same engine, 20,000 nodes per move: <strong>+138 ± 11 Elo</strong> for the 3.0 network (2,000 games).</li>
     <li>The cost of a node is almost the same (1.07 million nodes per second in the depth-12 bench against 1.13 for 2.3), but the search tree is smaller: the bench needs 859,322 nodes instead of 1,051,844 and takes 14 % less time.</li>
     <li>In my own round robin against 100 other engines (5 s + 0.1 s, one thread) 3.0 scored 76.0 of 200 games; fitted onto the CCRL Blitz scale that is about 3576 (95 % interval 3552 to 3597). An estimate under my own conditions, not a rating-list result.</li>
@@ -170,10 +171,10 @@ info depth 13 score cp 20  nodes 82820   time 514  pv d2d4 d7d5 c2c4 e7e6 b1c3 g
 </section>
 
 <section id="download">
-  <h2>Download 3.0</h2>
+  <h2>Download 3.1</h2>
   <p class="intro">Unzip and add <code>kestrel.exe</code> (or <code>kestrel</code>) to your chess program. The x86-64-v3 build is the only one with the AVX2 evaluation code; the other builds give the same moves and run about 37 % slower. The exe is large because the network is inside it.</p>
-  <div class="tablewrap"><table><thead><tr><th>Platform</th><th>File</th><th class="n">Size</th></tr></thead><tbody><tr><td>Windows 64-bit<span class="sub">CPU with AVX2 and BMI2 (most PCs since 2015). Recommended.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-windows-x86-64-v3.zip">Kestrel-3.0-windows-x86-64-v3.zip</a></td><td class="n">53 MB</td></tr><tr><td>Windows 64-bit<span class="sub">CPU with SSE4.2 and POPCNT. About 37 % slower.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-windows-x86-64-v2.zip">Kestrel-3.0-windows-x86-64-v2.zip</a></td><td class="n">53 MB</td></tr><tr><td>Windows 64-bit<span class="sub">any CPU. About 37 % slower.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-windows-x86-64.zip">Kestrel-3.0-windows-x86-64.zip</a></td><td class="n">53 MB</td></tr><tr><td>Linux x86-64<span class="sub">AVX2 + BMI2</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-linux-x86-64-v3.tar.gz">Kestrel-3.0-linux-x86-64-v3.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Linux x86-64<span class="sub">SSE4.2 + POPCNT</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-linux-x86-64-v2.tar.gz">Kestrel-3.0-linux-x86-64-v2.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Linux x86-64<span class="sub">any CPU</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-linux-x86-64.tar.gz">Kestrel-3.0-linux-x86-64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Linux ARM64<span class="sub"></span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-linux-arm64.tar.gz">Kestrel-3.0-linux-arm64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>macOS<span class="sub">Intel Macs</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-macos-x86-64.tar.gz">Kestrel-3.0-macos-x86-64.tar.gz</a> <span class="flag">compiled, not run</span></td><td class="n">53 MB</td></tr><tr><td>macOS<span class="sub">Apple Silicon</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/Kestrel-3.0-macos-arm64.tar.gz">Kestrel-3.0-macos-arm64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Network file<span class="sub">only needed to build from source or to load with EvalFile</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/kestrel_net_3_0.bin">kestrel_net_3_0.bin</a></td><td class="n">76 MB</td></tr><tr><td>Checksums<span class="sub">SHA-256 of every file</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.0/SHA256.txt">SHA256.txt</a></td><td class="n">0 MB</td></tr></tbody></table></div>
-  <p class="fine">The Windows x86-64-v3 build ran all the tests (two audits, a 30-check sanitizer verification, the tablebase test); the other two Windows builds give the same bench. The Linux and macOS files were compiled with Zig; the GitHub Actions workflow runs the published files on GitHub's machines. Version 2.3 files are on the <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v2.3">2.3 release page</a>, version 1.1 files on the <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v1.0">1.1 release page</a>.</p>
+  <div class="tablewrap"><table><thead><tr><th>Platform</th><th>File</th><th class="n">Size</th></tr></thead><tbody><tr><td>Windows 64-bit<span class="sub">CPU with AVX2 and BMI2 (most PCs since 2015). Recommended.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-windows-x86-64-v3.zip">Kestrel-3.1-windows-x86-64-v3.zip</a></td><td class="n">54 MB</td></tr><tr><td>Windows 64-bit<span class="sub">CPU with SSE4.2 and POPCNT. About 37 % slower.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-windows-x86-64-v2.zip">Kestrel-3.1-windows-x86-64-v2.zip</a></td><td class="n">53 MB</td></tr><tr><td>Windows 64-bit<span class="sub">any CPU. About 37 % slower.</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-windows-x86-64.zip">Kestrel-3.1-windows-x86-64.zip</a></td><td class="n">54 MB</td></tr><tr><td>Linux x86-64<span class="sub">AVX2 + BMI2</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-linux-x86-64-v3.tar.gz">Kestrel-3.1-linux-x86-64-v3.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Linux x86-64<span class="sub">SSE4.2 + POPCNT</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-linux-x86-64-v2.tar.gz">Kestrel-3.1-linux-x86-64-v2.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Linux x86-64<span class="sub">any CPU</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-linux-x86-64.tar.gz">Kestrel-3.1-linux-x86-64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Linux ARM64<span class="sub"></span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-linux-arm64.tar.gz">Kestrel-3.1-linux-arm64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>macOS<span class="sub">Intel Macs</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-macos-x86-64.tar.gz">Kestrel-3.1-macos-x86-64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>macOS<span class="sub">Apple Silicon</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/Kestrel-3.1-macos-arm64.tar.gz">Kestrel-3.1-macos-arm64.tar.gz</a> <span class="flag">run on GitHub Actions</span></td><td class="n">53 MB</td></tr><tr><td>Network file<span class="sub">only needed to build from source or to load with EvalFile</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/kestrel_net_3_1.bin">kestrel_net_3_1.bin</a></td><td class="n">76 MB</td></tr><tr><td>Checksums<span class="sub">SHA-256 of every file</span></td><td><a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/download/v3.1/SHA256.txt">SHA256.txt</a></td><td class="n">0 MB</td></tr></tbody></table></div>
+  <p class="fine">The Windows x86-64-v3 build ran all the tests (two audits, the sanitizer verification, the tablebase test, thread stress tests up to 128 threads); the other two Windows builds give the same bench. The Linux and macOS files were compiled with Zig; the GitHub Actions workflow runs the published files on GitHub's machines. Version 3.0 files are on the <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v3.0">3.0 release page</a>, version 2.3 files on the <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v2.3">2.3 release page</a>, version 1.1 files on the <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v1.0">1.1 release page</a>.</p>
 </section>
 
 <section id="use">
@@ -181,10 +182,10 @@ info depth 13 score cp 20  nodes 82820   time 514  pv d2d4 d7d5 c2c4 e7e6 b1c3 g
   <ol class="steps">
     <li>Download a file above and unzip it. Keep <code>claude_book.txt</code> next to the engine and switch <code>OwnBook</code> on if you want the opening book (it is off by default; the book file keeps its old name).</li>
     <li>In your chess program, add a new UCI engine and point it at <code>kestrel.exe</code>. In Cute Chess this is Tools, Settings, Engines, the plus button.</li>
-    <li>Set <code>Hash</code> to the memory you can spare (the default is 256 MB) and <code>Threads</code> to the cores you want to use.</li>
+    <li>Set <code>Hash</code> to the memory you can spare (the default is 256 MB) and <code>Threads</code> to the cores you want to use (at most as many as the computer has logical processors; with 64 or more, raise <code>Move Overhead</code> to 50 - 100 ms).</li>
   </ol>
   <p class="intro" style="margin-top:1.4rem;margin-bottom:0">Options include:</p>
-  <ul class="opts"><li>Hash, Threads (1 to 8)</li><li>MultiPV, Ponder</li><li>OwnBook, Experience</li><li>Move Overhead</li><li>UCI_LimitStrength, UCI_Elo</li><li>UCI_Chess960</li><li>UCI_ShowWDL, UCI_AnalyseMode</li><li>EvalFile, EvalScale</li><li>SyzygyPath, SyzygyProbeDepth, Syzygy50MoveRule, SyzygyProbeLimit (new in 3.0)</li></ul>
+  <ul class="opts"><li>Hash (up to 1,048,576 MB), Threads (1 to 128)</li><li>MultiPV, Ponder</li><li>OwnBook, Experience</li><li>Move Overhead</li><li>UCI_LimitStrength, UCI_Elo</li><li>UCI_Chess960</li><li>UCI_ShowWDL, UCI_AnalyseMode</li><li>EvalFile, EvalScale</li><li>SyzygyPath, SyzygyProbeDepth, Syzygy50MoveRule, SyzygyProbeLimit (new in 3.0)</li></ul>
   <p class="fine">Syzygy tablebases: set <code>SyzygyPath</code> to the folder with the <code>.rtbw</code> and <code>.rtbz</code> files. The files with 3, 4 and 5 men were tested (940 MB); larger sets use the same code. Without tablebase files nothing changes. Details: <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/blob/main/docs/SYZYGY.md">docs/SYZYGY.md</a>.</p>
 </section>
 
@@ -201,15 +202,16 @@ info depth 13 score cp 20  nodes 82820   time 514  pv d2d4 d7d5 c2c4 e7e6 b1c3 g
   <ul class="plain">
     <li><strong>Training data.</strong> 238 million positions of the Lichess evaluation database (CC0), 2.36 billion positions along the best lines stored with its entries, and 6.6 million positions from Kestrel's own games, all labelled by Stockfish evaluations: about nine times as many as 2.x. The 2.x network overfitted the database positions alone; the positions along the lines removed that limit.</li>
     <li><strong>Speed.</strong> A network this size costs time, so the evaluation code skips the zero inputs, builds the per-side numbers only for positions that are really evaluated, keeps a refresh cache for king moves and loads the weights ahead of time. Together that made the engine 1.95 times faster than its first version with identical moves and scores.</li>
+    <li><strong>Threads.</strong> Lazy SMP: every thread searches the same position with its own tables and shares only the transposition table. The search code exists once per thread (128 copies of one section of the file, made from the 3.0 source by a script that checks that they are identical), so a thread needs no pointer to a record of its own.</li>
     <li><strong>The network.</strong> 39.1 million parameters, trained from scratch in two stages (54 and 8 hours) on the CPU of one laptop, with no GPU. On held-out positions its error is 17 % lower than the 2.3 network's on Lichess positions and 32 % lower on positions from Kestrel's own games.</li>
   </ul>
 </section>
 
 <section id="build">
   <h2>Build it yourself</h2>
-  <p class="intro">The source is one file, <code>src/kestrel_3_0.cpp</code>. The 76 MB network is not stored in git: download <code>kestrel_net_3_0.bin</code> from the release, save it as <code>kestrel_net.bin</code> in the folder where you run the compiler, and compile.</p>
-  <pre class="code">g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel.exe src/kestrel_3_0.cpp</pre>
-  <p class="fine">Other CPUs and operating systems: <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/blob/main/docs/BUILDING.md">docs/BUILDING.md</a>.</p>
+  <p class="intro">The source is one file, <code>src/kestrel_3_1.cpp</code>. The 76 MB network is not stored in git: download <code>kestrel_net_3_1.bin</code> from the release, save it as <code>kestrel_net.bin</code> in the folder where you run the compiler, and compile.</p>
+  <pre class="code">g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel.exe src/kestrel_3_1.cpp</pre>
+  <p class="fine">The source has 128 copies of the search: compiling it takes about two minutes and 1.1 GB of memory. Other CPUs and operating systems: <a href="https://github.com/Alon-Berg/Kestrel-chess-engine/blob/main/docs/BUILDING.md">docs/BUILDING.md</a>.</p>
 </section>
 </div>
 
