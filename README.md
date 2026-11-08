@@ -8,7 +8,7 @@ A UCI chess engine in one C++17 file, written by [Claude](https://www.anthropic.
 
 ## Strength
 
-All numbers are my own, from fastchess matches on one laptop (1 thread, 64 MB hash, no book, no learning, no adjudication, the same openings for both sides, every engine process at full speed with Windows' efficiency throttling switched off). No rating list has tested Kestrel yet. Elo is Kestrel 3.0 against the older version, with fastchess's 95 % interval. Kestrel 3.1 has the network and the search of 3.0 and plays exactly like it with one thread, so the numbers below hold for 3.1 with one thread.
+All numbers are my own, from fastchess matches on one laptop (1 thread, 64 MB hash, no book, no learning, no adjudication, the same openings for both sides, every engine process at full speed with Windows' efficiency throttling switched off). No rating list has tested Kestrel yet. Elo is Kestrel 3.0 against the older version, with fastchess's 95 % interval. Kestrel 3.1 has the network and the search of 3.0 and plays exactly like it with one thread, and 3.2 plays like 3.1 except for the time management of searches with a clock, so the numbers below hold for 3.1 and 3.2 with one thread.
 
 | Time per game (base + increment, seconds) | Kestrel 3.0 against Kestrel 2.3 |
 |---|---|
@@ -26,15 +26,17 @@ Raw results: `logs/fast_matches_3_0.txt`.
 
 **Many threads (3.1):** 8 threads score +123 ± 24 Elo against 1 thread of the same build at 10 s + 0.1 s per game (200 games with a development build; +108 ± 38 in 100 games with the release exe; on a laptop with 22 logical processors). 64 and 128 threads on the same 22 processors gain nothing (+11 ± 71 and +11 ± 57, 32 games each), so use at most as many threads as the computer has logical processors. Lazy SMP does not scale linearly (the nodes per second grow 2.9 times with 8 threads and 3.7 times with 20 on that laptop), and I could not test a computer with many more processors; details in [CHANGELOG.md](CHANGELOG.md).
 
+**Time management (3.2):** a smoother rule for when to stop searching, in games with a clock: Kestrel 3.2 against 3.1 scored +11.2 ± 6.2 Elo at 3 s + 0.03 s per game (4,000 games) and +6.2 ± 7.5 at 5 s + 0.1 s (2,000 games), packaged builds, one thread; together +9.2 ± 4.8 Elo (6,000 games). No change at all with a fixed move time, depth or node limit. Raw results: `logs/fast_matches_3_2.txt`.
+
 For comparison, Kestrel 2.0 against the older versions (the same kind of match): **+37 ± 11 Elo** against 1.1 (1,900 games) and **+48 ± 13** against 1.0 (1,500 games), see `logs/fast_matches_2_0.txt`.
 
 ## What is inside
 
 * **Evaluation:** one network. 24,576 inputs per side (12 piece kinds × 64 squares × 32 horizontally mirrored king buckets), 1,536 integer accumulators per side kept up to date move by move, a pairwise-product activation, then 16 → 32 → 1 neurons with 8 output buckets chosen by the number of pieces. The second layer skips the zero inputs (about 90 % are zero); an AVX2 code path does the work on CPUs that have it, with exactly the same results as the plain code.
-* **Search:** iterative deepening with aspiration windows and principal-variation search; a bucketed transposition table; null-move pruning, reverse futility, ProbCut, internal iterative reduction, late-move reductions and pruning, futility and SEE pruning, singular extensions; killer, counter-move, history and continuation-history move ordering; a correction history for the static evaluation; quiescence search with SEE; Lazy SMP with up to 128 threads (3.1; 3.0: 8) and a hash of up to 1,048,576 MB (3.0: 4096); Stockfish's repetition rule and a damping of the evaluation near the fifty-move limit.
+* **Search:** iterative deepening with aspiration windows and principal-variation search; a bucketed transposition table; null-move pruning, reverse futility, ProbCut, internal iterative reduction, late-move reductions and pruning, futility and SEE pruning, singular extensions; killer, counter-move, history and continuation-history move ordering; a correction history for the static evaluation; quiescence search with SEE; Lazy SMP with up to 128 threads (3.1; 3.0: 8) and a hash of up to 1,048,576 MB (3.0: 4096); a smooth time management (3.2); Stockfish's repetition rule and a damping of the evaluation near the fifty-move limit.
 * **Syzygy tablebases** (new in 3.0): probing inside the search and at the root with the WDL and DTZ files; the 3-4-5-men files were tested, 6 and 7 men use the same code. See [docs/SYZYGY.md](docs/SYZYGY.md).
 * **Features:** Chess960, `MultiPV` (up to 8), `UCI_ShowWDL`, `UCI_AnalyseMode`, `UCI_LimitStrength`, `go movetime` with `Move Overhead`, pondering, an optional opening book and an optional "experience" file (position learning), `EvalFile` to load another network of the same format.
-* **Not available:** NUMA / large pages.
+* **Not available:** NUMA awareness and Windows large pages (since 3.2 the hash table is advised to use transparent huge pages on Linux).
 
 ## Use it
 
@@ -42,13 +44,13 @@ Unzip a release file and add `kestrel.exe` (or `kestrel`) to a UCI program such 
 
 ## Build
 
-The 76 MB network is not stored in git. Download `kestrel_net_3_1.bin` from the [release page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest), save it as `kestrel_net.bin` in the folder where you run the compiler (the assembler looks for it in the **current directory**) and compile:
+The 76 MB network is not stored in git. Download `kestrel_net_3_2.bin` from the [release page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest), save it as `kestrel_net.bin` in the folder where you run the compiler (the assembler looks for it in the **current directory**) and compile:
 
 ```
-g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_3_1.cpp
+g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_3_2.cpp
 ```
 
-The source has 128 copies of the search, so the compile takes about two minutes and 1.1 GB of memory (3.0: 16 s). Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: [docs/BUILDING.md](docs/BUILDING.md). `kestrel bench 12` must print `bench: nodes 859322`.
+The source has 128 copies of the search, so the compile takes about two and a half minutes and 1.1 GB of memory (3.0: 16 s). Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: [docs/BUILDING.md](docs/BUILDING.md). `kestrel bench 12` must print `bench: nodes 859322`.
 
 ## How it was tested
 
@@ -56,7 +58,7 @@ The source has 128 copies of the search, so the compile takes about two minutes 
 * A 30-check verification with GCC and with clang AddressSanitizer + UBSan builds (also with 4 threads): accumulator self-test over 186,000 positions, perft, perft against python-chess, evaluation mirror symmetry, PV legality, UCI fuzzers, `go infinite` / `stop` races, MultiPV and ponder checks, and for 3.0 the Syzygy test (`tests/tb_test.py`: win/draw/loss of random 3-5-men positions against python-chess reading the same files, the root move filter, search, and conversion of won endgames). Logs are in `logs/`.
 * The Windows x86-64-v3 build ran all of this. The repository's GitHub Actions workflow ([`verify-release.yml`](.github/workflows/verify-release.yml)) runs the published files on GitHub's machines (Linux x86-64 v3, v2 and generic, Linux ARM64, macOS Apple silicon, Windows): its runs on the published files are on the Actions page.
 * The macOS Intel build is run by the same workflow on GitHub's macOS Intel machine (`macos-15-intel`); I have no Mac myself.
-* For the many threads of 3.1: thread start / stop stress tests with 16, 64 and 128 threads, `tests/breakers.py` with 1, 8 and 64 threads, an AddressSanitizer + UBSan build run with up to 128 threads, matches of 8 threads against 1 (200 and 100 games), and the scaling measurements of the changelog (`logs/threads_3_1.txt`). All of it ran on one Windows laptop with 22 logical processors.
+* For the many threads of 3.1: thread start / stop stress tests with 16, 64 and 128 threads, `tests/breakers.py` with 1, 8 and 64 threads, an AddressSanitizer + UBSan build run with up to 128 threads, matches of 8 threads against 1 (200 and 100 games), and the scaling measurements of the changelog (`logs/threads_3_1.txt`). All of it ran on one Windows laptop with 22 logical processors. For 3.2 the same suites ran on the 3.2 files (`logs/threads_3_2.txt`, `logs/repo_tests_3_2.txt`).
 
 ## How the network was made
 
@@ -74,12 +76,12 @@ The held-out error (mean squared error of the win probability, 400,000 positions
 
 ## Versions
 
-3.1 (up to 128 threads and a hash of up to 1,048,576 MB; plays like 3.0 with one thread), 3.0 (a new network trained on about nine times more positions, Syzygy tablebases), 2.3 (bug fixes: an evaluation overflow in endgames; obsolete options with wrong defaults removed, which was 2.2), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
+3.2 (smoother time management; huge-page advice for the hash table on Linux), 3.1 (up to 128 threads and a hash of up to 1,048,576 MB; plays like 3.0 with one thread), 3.0 (a new network trained on about nine times more positions, Syzygy tablebases), 2.3 (bug fixes: an evaluation overflow in endgames; obsolete options with wrong defaults removed, which was 2.2), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
 
 ## Layout
 
-* `src/kestrel_3_1.cpp` the whole engine (4.1 MB: the engine of 3.0 with 128 copies of the search, made by `scripts/make_threads.py` from `src/kestrel_3_0.cpp`, which is the same engine with 8 copies and the file to read); `src/kestrel_2_0.cpp` is 2.0 - 2.3; `src/kestrel_1_1.cpp` and its network headers: Kestrel 1.1; `src/claude_book.txt` the optional opening book (the file keeps its old name)
-* `scripts/` the generator of the 3.1 source (`make_threads.py`) and the Windows version-info file (`kestrel.rc`)
+* `src/kestrel_3_2.cpp` the whole engine (4.6 MB: the engine with 128 copies of the search, made by `scripts/make_threads.py` from `src/kestrel_3_2_base.cpp`, which is the same engine with 8 copies and the file to read); `src/kestrel_3_1.cpp` is 3.1 (made from `src/kestrel_3_0.cpp`, which is 3.0); `src/kestrel_2_0.cpp` is 2.0 - 2.3; `src/kestrel_1_1.cpp` and its network headers: Kestrel 1.1; `src/claude_book.txt` the optional opening book (the file keeps its old name)
+* `scripts/` the generator of the 3.1 and 3.2 sources (`make_threads.py`) and the Windows version-info file (`kestrel.rc`)
 * `docs/` build notes, option reference, Syzygy notes, an architecture guide, release notes of 1.x, the web page (`index.html`)
 * `logs/` result and test logs of the releases
 * `tests/` black-box test scripts for any Kestrel executable (see `tests/README.md`)
@@ -88,4 +90,4 @@ The tools that train the network and run the long test suites are not part of th
 
 ## Licence
 
-MIT, see `LICENSE`. The Syzygy probing code (Fathom) is MIT-licensed too; its notice is in `THIRD_PARTY_NOTICES.txt` and at the start of its block in `src/kestrel_3_1.cpp`.
+MIT, see `LICENSE`. The Syzygy probing code (Fathom) is MIT-licensed too; its notice is in `THIRD_PARTY_NOTICES.txt` and at the start of its block in `src/kestrel_3_2.cpp`.

@@ -1,10 +1,11 @@
-r"""Kestrel 3.1 (many search threads): turns src/kestrel_3_0.cpp (the released 3.0 source) into a source with N search copies S0..S(N-1) and a larger Hash maximum.
-usage: python scripts/make_threads.py <N> [out.cpp] [--hash-max MB] [--src file] [--id-name "Kestrel 3.1"] [--pawn-bss 0|1] [--mem 0|1] [--prio 0|1] [--nodes 0|1]
-src/kestrel_3_1.cpp is the output of `python scripts/make_threads.py 128 src/kestrel_3_1.cpp --id-name "Kestrel 3.1"` (byte for byte).
+r"""Kestrel 3.2 (many search threads): turns src/kestrel_3_2_base.cpp (the 3.2 source with 8 search copies) into a source with N search copies S0..S(N-1) and a larger Hash maximum.
+usage: python scripts/make_threads.py <N> [out.cpp] [--hash-max MB] [--src file] [--id-name "Kestrel 3.2"] [--pawn-bss 0|1] [--mem 0|1] [--prio 0|1] [--nodes 0|1] [--depth1 0|1] [--async 0|1]
+src/kestrel_3_2.cpp is the output of `python scripts/make_threads.py 128 src/kestrel_3_2.cpp --id-name "Kestrel 3.2"` (byte for byte); with `--src src/kestrel_3_0.cpp --id-name "Kestrel 3.1"` the script
+makes the source of 3.1 (src/kestrel_3_1.cpp) except for the huge-page advice of 13.
 
 How 3.0 got its limit of 8 threads: the search (search, qsearch, move ordering, history / continuation / correction / pawn tables, the per-thread position with its accumulator ring) is compiled once
 per thread, as the namespaces S0..S7, so that every thread works on its own globals (no thread_local, no pointer to a thread record: the generated code is the one of a single-threaded engine).
-The 8 copies of 3.0 are textually identical, only the namespace name differs.  This script clones S0 into S8..S(N-1) and changes exactly:
+The 8 copies of the input are textually identical, only the namespace name differs.  This script clones S0 into S8..S(N-1) and changes exactly:
   1. const int MAXTH = 8;                                  -> N   (+ const int HASH_MAX_MB)
   2. helperFns[MAXTH], nodeCtr[MAXTH], clearAllTables()    -> list all N copies
   3. "option name Threads ... max 8"                       -> max N      "option name Hash ... max 4096" -> max <hash-max>
@@ -30,15 +31,18 @@ The 8 copies of 3.0 are textually identical, only the namespace name differs.  T
  12. (--async 1, the default) the helper threads are started by a launcher thread and the main search begins at once (3.0: think() started all helpers first; with 64 - 128 threads that takes 6 - 100 ms and more, which with a short
      move time was most of it: 128 threads, go movetime 60 on a 22-processor laptop: 19 of 60 searches ended at depth 1 and played a stalemating move, the stalemate being visible from depth 2 on).  The launcher stops as soon as the
      search ends; think() joins it before the helpers.  `searchThreads` becomes atomic (the launcher writes it while the main thread reads it for the node count of the info lines).
-Nothing else in the search or the evaluation is touched, so with Threads 1 the engine plays exactly like 3.0 (bench 12 = 859322 nodes).
+ 14. (--mem 1, the default; macOS) the limit of 3/4 of the installed memory (item 8a) also works on macOS (sysctl hw.memsize).
+ 13. (--mem 1, the default; Linux only) the hash table is advised to use transparent huge pages (madvise MADV_HUGEPAGE on its 2 MB aligned part, tables of 256 MB and more): the random probes of many threads
+     then miss the TLB far less often.  An advice only: ignored where huge pages are off; Windows and macOS are unchanged.
+Nothing else in the search or the evaluation is touched by this script.
 The script then checks its own result: all N copies identical after renaming, and the lines outside the copies differ from the input only in the places listed above (it prints that diff)."""
 import difflib, os, re, sys
 
 D = os.path.dirname(os.path.abspath(__file__))
 args = sys.argv[1:]
 N = int(args.pop(0))
-opts = {"--hash-max": "1048576", "--src": os.path.join(os.path.dirname(D), "src", "kestrel_3_0.cpp"), "--id-name": "Kestrel 3.1", "--pawn-bss": "1", "--mem": "1", "--prio": "1", "--nodes": "1", "--depth1": "1", "--async": "1"}
-out = os.path.join(os.path.dirname(D), "src", "kestrel_3_1.cpp")
+opts = {"--hash-max": "1048576", "--src": os.path.join(os.path.dirname(D), "src", "kestrel_3_2_base.cpp"), "--id-name": "Kestrel 3.2", "--pawn-bss": "1", "--mem": "1", "--prio": "1", "--nodes": "1", "--depth1": "1", "--async": "1"}
+out = os.path.join(os.path.dirname(D), "src", "kestrel_3_2.cpp")       # (default name; the plain-clone variants of 2026-11-06 were written with the old default)
 i = 0
 while i < len(args):
     if args[i] in opts: opts[args[i]] = args[i + 1]; i += 2
@@ -165,6 +169,10 @@ if opts["--prio"] == "1" and opts["--async"] != "1":
         "#endif\n")
 if opts["--mem"] == "1":
     PHYS_ZERO = r'''// ---------------------------------------------------------------- 3.1: big hash tables
+#if defined(__APPLE__)
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#endif
 static long long physMemMB() {           // installed physical memory in MB (0 = unknown)
 #if defined(_WIN32)
     MEMORYSTATUSEX ms; ms.dwLength = sizeof ms;
@@ -172,10 +180,21 @@ static long long physMemMB() {           // installed physical memory in MB (0 =
 #elif defined(__linux__)
     const long pages = sysconf(_SC_PHYS_PAGES), psz = sysconf(_SC_PAGE_SIZE);
     return (pages > 0 && psz > 0) ? (long long)((unsigned long long)pages * (unsigned long long)psz >> 20) : 0;
+#elif defined(__APPLE__)
+    int64_t memsize = 0; size_t len = sizeof memsize;
+    return (sysctlbyname("hw.memsize", &memsize, &len, nullptr, 0) == 0 && memsize > 0) ? (long long)(memsize >> 20) : 0;
 #else
     return 0;
 #endif
 }
+#if defined(__linux__) && defined(MADV_HUGEPAGE)
+static void adviseHuge(void* p, size_t n) {       // 3.2: ask for transparent huge pages (2 MB) for a big table; the kernel may ignore it
+    const uintptr_t mask = ((uintptr_t)2 << 20) - 1, a = ((uintptr_t)p + mask) & ~mask, e = ((uintptr_t)p + n) & ~mask;
+    if (n >= ((size_t)256 << 20) && e > a) madvise((void*)a, (size_t)(e - a), MADV_HUGEPAGE);
+}
+#else
+static void adviseHuge(void*, size_t) {}
+#endif
 // Zeroes a big block with several threads: a hash table of many GB takes seconds to clear with one thread (at every ucinewgame), a few tenths of a second with all cores; the pages are also first touched by
 // many threads, which spreads them over the memory nodes of a multi-socket machine.  Blocks below 512 MB are cleared by the calling thread alone (as in 3.0).
 static void zeroMem(void* p, size_t n) {
@@ -201,10 +220,10 @@ static void zeroMem(void* p, size_t n) {
         "    { const long long phys = physMemMB();       // never ask for more than 3/4 of the installed memory: the table would be paged out and the whole machine with it\n"
         "      if (phys > 0 && (long long)mb > phys * 3 / 4) { mb = (int)(phys * 3 / 4); printf(\"info string Hash: limited to %d MB (3/4 of the installed memory, %lld MB)\\n\", mb, phys); fflush(stdout); } }\n")
     rep("try { tt.reset(new TTE[p + 4]()); ttBase = (TTE*)(((uintptr_t)tt.get() + 63) & ~(uintptr_t)63); ttMask = p - 1; ttRequestedMB = requested; ttDirty = false; return; }",
-        "try { tt.reset(new TTE[p + 4]); ttBase = (TTE*)(((uintptr_t)tt.get() + 63) & ~(uintptr_t)63); ttMask = p - 1; zeroMem((void*)ttBase, p * sizeof(TTE)); ttRequestedMB = requested; ttDirty = false; return; }")
+        "try { tt.reset(new TTE[p + 4]); ttBase = (TTE*)(((uintptr_t)tt.get() + 63) & ~(uintptr_t)63); ttMask = p - 1; adviseHuge((void*)ttBase, p * sizeof(TTE)); zeroMem((void*)ttBase, p * sizeof(TTE)); ttRequestedMB = requested; ttDirty = false; return; }")
 t = t.replace("// Claude 1.0 - a from-scratch UCI chess engine (bitboards, alpha-beta, hand-made eval).\n",
               "// Claude 1.0 - a from-scratch UCI chess engine (bitboards, alpha-beta, hand-made eval).\n"
-              "// %s: Kestrel 3.0 with %d search copies (Threads up to %d) and Hash up to %d MB%s; generated by scripts/make_threads.py from src/kestrel_3_0.cpp\n" % (
+              "// %s: Kestrel 3.2 with %d search copies (Threads up to %d) and Hash up to %d MB%s; generated by scripts/make_threads.py from src/kestrel_3_2_base.cpp\n" % (
                   ID_NAME, N, N, HASH_MAX, ", pawn table zero-initialised (in .bss)" if opts["--pawn-bss"] == "1" else ""), 1)
 new_lines = t.split("\n")
 nb = check_copies(new_lines, N)

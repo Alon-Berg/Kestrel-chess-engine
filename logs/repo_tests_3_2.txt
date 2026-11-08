@@ -1,0 +1,23 @@
+Kestrel 3.2, the packaged Windows x86-64-v3 exe, tests\ of the repository (dev\b31mt\repo_tests.py; Threads 1 unless a script sets more; every script's full output was kept)
+
+PASS audit_sem              (   6 s) PASS  castling position: legal bestmove  | bestmove a1a8 | 31 checks, 0 failed
+PASS audit_probe            (  33 s) PASS  (info) upper-case commands are ignored like in Stockfish | 83 cases, 0 failed
+PASS edge_test              ( 158 s) cases 303 | problems 0 | 158s
+PASS race_test_x60          (  15 s) runs 60 hung (no bestmove within 5 s): 0 | slowest start 0.3 s
+PASS infinite_test          (   3 s) bestmove printed BEFORE stop: False | after stop: ['bestmove d1d8']
+PASS options_test           (   1 s) options_test: 20 options, 5 positions, 0 differences
+PASS test_uci_features      (   7 s) PASS Threads 4: search completes with a legal move   nps 4861955 | 13 checks, 0 failed
+PASS clock_limit_test       (   4 s) PASS clock alone: unchanged (about 3000/28 ms)   0.07s, depth 10 | clock_limit_test: 9 checks, 0 failed
+PASS longlist_test          (   1 s) kestrel_builds_work_32\windows_x86-64-v3\kestrel.exe | alive: True | exit: None | bestmove: ['bestmove d2d4']
+PASS chess960_test          (  11 s) PASS standard chess (UCI_Chess960 off): legal moves equal python-chess in 2400 positions; castling e1g1 e1c1 e8g8 e8c8 all seen (41 castling moves)   ['e1c1', 'e1g1', 'e8c8', 'e8g8'] | chess960_test: 5 checks, 0 failed
+PASS interop_test           (   5 s) PASS new-game handling (ucinewgame between games) | interop_test: 18 checks, 0 failed
+PASS uci_fuzz               (  74 s) sequences 300 | failures 0
+PASS stress_stop_t16        (   7 s) iterations 2000 | go commands 776 | bestmoves 776 | OK
+PASS stress_stop_t64        (   8 s) iterations 2000 | go commands 755 | bestmoves 755 | OK
+PASS stress_stop_t128       (  11 s) iterations 2000 | go commands 794 | bestmoves 794 | OK
+PASS breakers_t1            (  68 s) eval     214 checks, 0 problems,   29 s | breakers: PASS  (807 checks, 68 s)
+PASS breakers_t8            (  66 s) eval     214 checks, 0 problems,   32 s | breakers: PASS  (807 checks, 66 s)
+PASS breakers_t64           (  68 s) eval     214 checks, 0 problems,   32 s | breakers: PASS  (807 checks, 68 s)
+PASS breakers_t16_syzygy    (  70 s) tb       400 checks, 0 problems,   10 s | breakers: PASS  (1207 checks, 70 s)
+PASS tb_test_t16            (  16 s) 4. conversion: 15 of 15 won endgames converted to a mate | tb_test: PASS
+repo_tests 32pkg: done (20 tests)

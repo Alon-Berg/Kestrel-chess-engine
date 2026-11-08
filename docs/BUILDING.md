@@ -71,6 +71,20 @@ Nothing else changes for 3.0: the AVX2 evaluation code is compiled only when the
 
 Tested for 3.0 (Windows x86-64-v3, logs in `logs/`): the 30-check verification with AddressSanitizer / UBSan, also with 4 threads, and the Syzygy test (`v3_0_verify_log.txt`, 30 of 30), the two audits (`audit_probe_3_0_output.txt`, 83 of 83; `audit_sem_3_0_output.txt`, 31 of 31), the options test (20 options, 0 differences) and, with the 3-4-5-men files, `tests/tb_test.py` (1,500 positions, 0 mismatches against python-chess; conversion 30 of 30). The Linux and macOS builds were compiled with Zig (clang) and checked for file format; the GitHub Actions workflow runs the published files and the source on GitHub's machines.
 
+## Kestrel 3.2
+
+`src/kestrel_3_2.cpp` is the whole engine with 128 copies of the search (4.6 MB, about 83,700 lines). It is generated from `src/kestrel_3_2_base.cpp` (the same engine with 8 copies, 11,300 lines: the file to read) by `scripts/make_threads.py`: `python scripts/make_threads.py 128 src/kestrel_3_2.cpp --id-name "Kestrel 3.2"` writes the file byte for byte (the script checks that the copies are identical and prints the few places where its output differs from its input). The network is the one of 3.0 and 3.1: download `kestrel_net_3_2.bin` (the same file as `kestrel_net_3_0.bin`) from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
+
+| Target | Compile with |
+|---|---|
+| Windows / Linux x86-64-v3 (AVX2 + BMI2) | `g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_3_2.cpp` |
+| x86-64-v2, plain x86-64 | same with `-march=x86-64-v2` or `-march=x86-64` (plain evaluation loops, about 37 % slower) |
+| ARM64, macOS, Linux cross builds | as for 1.1 above with `kestrel_3_2.cpp` (compiled with Zig; the GitHub Actions workflow runs them) |
+
+Compiling the file takes about 2.5 minutes and 1.1 GB with g++ -O3 on a fast PC (the Zig/clang build of the same source was 7 % slower at run time than the g++ one). The Windows x86-64-v3 exe is about 82 MB. The depth-12 bench is 859,322 nodes on all three Windows builds, as in 3.0 and 3.1. A development build (`-DKESTREL_TUNE_OPTIONS`) of `src/kestrel_3_2_base.cpp` has the search constants and the switched-off ideas as options (`K22Flags`, `K31Flags`, `K32Flags`, `T_...`).
+
+Tested for 3.2 (Windows x86-64-v3, logs in `logs/`): `threads_3_2.txt`, `repo_tests_3_2.txt` (the test scripts of `tests/`), `v3_2_verify_log.txt` (the sanitizer verification), `audit_probe_3_2_output.txt` (83 of 83) and `audit_sem_3_2_output.txt` (31 of 31); the thread measurements of 3.1 (`threads_3_1.txt`) apply, the thread code is unchanged.
+
 ## Kestrel 3.1
 
 `src/kestrel_3_1.cpp` is the whole engine with 128 copies of the search (4.1 MB, about 78,900 lines). It is generated from `src/kestrel_3_0.cpp` by `scripts/make_threads.py`: `python scripts/make_threads.py 128 src/kestrel_3_1.cpp --id-name "Kestrel 3.1"` writes the file byte for byte (the script checks that the copies are identical and prints the few places where its output differs from its input; the number of copies must be at least 8, and only 64 and 128 were built and tested). The network is the one of 3.0: download `kestrel_net_3_1.bin` (the same file as `kestrel_net_3_0.bin`) from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.
