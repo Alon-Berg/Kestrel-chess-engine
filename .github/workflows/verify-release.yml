@@ -11,7 +11,7 @@ on:
       tag:
         description: "Release tag whose published files are tested"
         required: false
-        default: "v3.1"
+        default: "v3.2"
   push:
     paths:
       - ".github/workflows/verify-release.yml"
@@ -19,10 +19,12 @@ on:
       - "scripts/**"
       - "src/kestrel_3_0.cpp"
       - "src/kestrel_3_1.cpp"
+      - "src/kestrel_3_2_base.cpp"
+      - "src/kestrel_3_2.cpp"
 
 env:
   REPO: Alon-Berg/Kestrel-chess-engine
-  TAG: ${{ github.event.inputs.tag || 'v3.1' }}
+  TAG: ${{ github.event.inputs.tag || 'v3.2' }}
 
 jobs:
   shipped-binaries:
@@ -58,7 +60,7 @@ jobs:
           uname -a || true
       - name: Depth-12 bench must give the recorded node count
         run: |
-          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0|v3.1) EXPECT=859322;; *) EXPECT="";; esac
+          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0|v3.1|v3.2) EXPECT=859322;; *) EXPECT="";; esac
           OUT=$("$EXE" bench 12 | tail -n 1); echo "$OUT"
           if [ -n "$EXPECT" ]; then echo "$OUT" | grep -q "nodes $EXPECT " || { echo "bench differs from $EXPECT"; exit 1; }; fi
       - name: UCI smoke test
@@ -76,11 +78,16 @@ jobs:
         run: |
           printf 'uci\nsetoption name Hash value 1000000\nisready\nquit\n' | "$EXE" | tee hash.txt
           grep -q '^info string Hash: limited to' hash.txt && grep -q '^readyok' hash.txt
+      - name: A hash request above the installed memory is cut (macOS, 3.2 and later)
+        if: ${{ runner.os == 'macOS' && !startsWith(env.TAG, 'v3.0') && !startsWith(env.TAG, 'v3.1') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v1.') }}
+        run: |
+          printf 'uci\nsetoption name Hash value 1000000\nisready\nquit\n' | "$EXE" | tee hash.txt
+          grep -q '^info string Hash: limited to' hash.txt && grep -q '^readyok' hash.txt
 
   tablebases:
     name: Syzygy on ${{ matrix.asset }}
     # Syzygy support starts with 3.0
-    if: ${{ !startsWith(github.event.inputs.tag || 'v3.1', 'v2.') && !startsWith(github.event.inputs.tag || 'v3.1', 'v1.') }}
+    if: ${{ !startsWith(github.event.inputs.tag || 'v3.2', 'v2.') && !startsWith(github.event.inputs.tag || 'v3.2', 'v1.') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -235,7 +242,7 @@ jobs:
       - name: Network file
         run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v3.0/kestrel_net_3_0.bin"
       - name: Compile with clang, AddressSanitizer and UBSan
-        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_3_1.cpp
+        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_3_2.cpp
       - name: Accumulator self-test under the sanitizers
         run: |
           set +e
@@ -299,16 +306,16 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Network file (the network of 3.0, which is also the network of 3.1; the assembler reads it from the current directory)
+      - name: Network file (the network of 3.0, which is also the network of 3.1 and 3.2; the assembler reads it from the current directory)
         run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v3.0/kestrel_net_3_0.bin"
-      - name: src/kestrel_3_1.cpp must be the output of scripts/make_threads.py
+      - name: src/kestrel_3_2.cpp must be the output of scripts/make_threads.py
         run: |
-          python3 scripts/make_threads.py 128 generated.cpp --id-name "Kestrel 3.1"
-          cmp generated.cpp src/kestrel_3_1.cpp
-      - name: Compile src/kestrel_3_1.cpp
+          python3 scripts/make_threads.py 128 generated.cpp --src src/kestrel_3_2_base.cpp --id-name "Kestrel 3.2"
+          cmp generated.cpp src/kestrel_3_2.cpp
+      - name: Compile src/kestrel_3_2.cpp
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_1.cpp
-          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_1.cpp; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_2.cpp
+          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_3_2.cpp; fi
       - name: Depth-12 bench must give the number recorded in tests/BENCH
         run: |
           EXPECT=$(tr -d '\r\n ' < tests/BENCH)
