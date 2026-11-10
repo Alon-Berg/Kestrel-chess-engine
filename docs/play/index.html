@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Play Kestrel in your browser</title>
+<meta name="description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 3.2 runs inside the page as WebAssembly.">
+<link rel="stylesheet" href="play.css">
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <a class="mark" href="../">Kestrel</a>
+  <nav aria-label="Pages"><a href="../">About</a><a href="../#download">Download</a><a href="https://github.com/Alon-Berg/Kestrel-chess-engine">Source</a></nav>
+</header>
+
+<main>
+  <p class="eyebrow">Kestrel 3.2 &middot; runs in this page &middot; nothing to install</p>
+  <h1>Play Kestrel</h1>
+
+  <div class="game">
+    <section class="boardcol" aria-label="Game">
+      <div class="player" id="topname"><span class="who">Kestrel 3.2</span><span class="tag" id="toptag"></span></div>
+      <div class="boardwrap">
+        <div id="board"></div>
+        <div id="promo" class="promo" hidden></div>
+      </div>
+      <div class="player" id="bottomname"><span class="who">You</span><span class="tag" id="bottomtag"></span></div>
+      <div id="think" class="think" aria-hidden="true"></div>
+    </section>
+
+    <aside class="side" aria-label="Controls">
+      <div id="status" class="status" role="status" aria-live="polite">Your move.</div>
+      <div id="loadbox" class="loadbox">
+        <div id="loadtext">Loading Kestrel&hellip;</div>
+        <div id="meter" class="meter"><div id="bar"></div></div>
+      </div>
+
+      <div class="panel">
+        <div class="row">
+          <button type="button" class="btn main" data-side="w">New game as White</button>
+          <button type="button" class="btn" data-side="b">as Black</button>
+          <button type="button" class="btn" data-side="r">Random</button>
+        </div>
+        <label class="field"><span>Level</span><select id="level"></select></label>
+        <label class="field"><span>Thinking time</span><select id="time"></select></label>
+        <label class="check"><input type="checkbox" id="showthink" checked> Show what Kestrel is calculating</label>
+      </div>
+
+      <div class="row">
+        <button type="button" class="btn" id="undo" disabled>Take back</button>
+        <button type="button" class="btn" id="flip">Flip board</button>
+        <button type="button" class="btn" id="resign">Resign</button>
+      </div>
+
+      <ol id="moves" class="moves" aria-label="Moves"></ol>
+
+      <div class="row">
+        <button type="button" class="btn" id="pgn" disabled>Copy PGN</button>
+        <button type="button" class="btn" id="pgnfile" disabled>Save PGN</button>
+      </div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <h2>How this works</h2>
+    <p>This is the real Kestrel 3.2 engine, compiled to WebAssembly and run by your browser on one thread. It gives the same moves and the same node counts as the Windows, Linux and macOS programs (the standard 8-position benchmark searches 859,322 nodes in both); it is slower because it uses one thread and no AVX2 (about a sixth of the speed of the Windows program on the same computer)<span id="simd"></span>.
+      The first visit loads Kestrel&rsquo;s 76 MB neural network (about 50 MB over the network, packed); your browser keeps a copy for the next visit. Nothing is sent anywhere: the game and the engine stay on your device.</p>
+    <p><strong>Levels.</strong> Levels 1 to 8 limit how many positions Kestrel may search for each move (the engine&rsquo;s <code>UCI_Elo</code> option). The numbers are rough guides, not ratings from games against people. &ldquo;Full strength&rdquo; uses all the thinking time you choose. Kestrel varies its first moves a little at the strong levels.</p>
+    <p>Looking for the engine itself, for your chess program? <a href="../#download">Download Kestrel</a> &middot; <a href="https://github.com/Alon-Berg/Kestrel-chess-engine">source code</a> (MIT licence).</p>
+  </section>
+</main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p><strong>Made by Claude</strong>, an AI model from <a href="https://www.anthropic.com/claude">Anthropic</a>. Kestrel is released under the MIT licence.</p>
+  </div>
+</footer>
+<script type="module" src="play.js"></script>
+</body>
+</html>

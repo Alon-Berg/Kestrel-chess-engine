@@ -98,3 +98,22 @@ Tested for 3.2 (Windows x86-64-v3, logs in `logs/`): `threads_3_2.txt`, `repo_te
 Compiling this file costs more than 3.0: g++ -O3 needs about 136 s and 1.1 GB of memory on a fast PC (3.0: 16 s, 0.5 GB; a 64-copy file of 2.2 MB: 69 s and 0.8 GB), Zig (clang) 55 - 71 s and 2.3 GB; no compiler limit was reached. The Windows x86-64-v3 exe is about 82 MB (3.0: 88.4 MB). Every search copy reserves 6.3 MB of address space, so a process commits about 0.84 GB when it starts (3.0: 79 MB) although a one-thread game touches only the first copy. The depth-12 bench is 859,322 nodes on all three Windows builds, as in 3.0.
 
 Tested for 3.1 (Windows x86-64-v3, logs in `logs/`): `threads_3_1.txt` (thread tests, scaling measurements and matches), `repo_tests_3_1.txt` (the test scripts of `tests/`, among them `breakers.py` with 1, 8 and 64 threads), `v3_1_verify_log.txt` (the sanitizer verification), `audit_probe_3_1_output.txt` (83 of 83) and `audit_sem_3_1_output.txt` (31 of 31). The Linux and macOS builds were compiled with Zig (clang) and checked for file format; the GitHub Actions workflow runs the published files and the source on GitHub's machines.
+
+## The play page (WebAssembly)
+
+`docs/play/` is a web page on which Kestrel 3.2 can be played in a browser (https://alon-berg.github.io/Kestrel-chess-engine/play/). The engine in it is the 3.2 source compiled to WebAssembly (wasm32-wasi, reactor model) with Zig; nothing else is needed to build it.
+
+```
+python scripts/make_wasm.py                                  # writes src/kestrel_3_2_wasm.cpp (byte for byte the file in the repository; runs scripts/make_threads.py 8 first)
+ZIG=/path/to/zig python scripts/build_wasm.py                # docs/play/kestrel.wasm (WebAssembly SIMD) and docs/play/kestrel-nosimd.wasm, Zig 0.15, about 15 seconds each
+python scripts/pack_net.py kestrel_net_3_2.bin docs/play/kestrel_net_3_2.pk.gz      # the network for the page: 44.2 MB instead of 76.3 MB, about 3 minutes
+python scripts/serve_play.py                                 # http://localhost:8000/ (the page does not work from a file: it needs a web server)
+```
+
+`make_wasm.py` takes the 3.2 source with 8 search copies and changes only what a browser needs: one search copy, no threads (a thread would run inside its constructor; none is started with one thread), no exceptions (`-fno-exceptions`), a stub for the `mmap` of the Syzygy reader (a browser has no table files), the network handed over as bytes instead of `.incbin`, and `main()` with its stdin loop replaced by exported functions (`kestrel_net_buffer`, `kestrel_init`, `kestrel_uci` for one UCI command per call, `kestrel_bench`); the body of the UCI loop is the text of 3.2. `go infinite` is refused (nothing can interrupt a search inside a browser worker; the page always gives a time or node limit).
+
+The WebAssembly files give the same moves and node counts as the native programs: `deno run --allow-read tests/web/wasm_bench_test.js kestrel_net.bin` checks that the bench searches 859,322 nodes and that the start position searched to depth 12 takes 63,397 nodes, for both files; `python tests/web/gen_rules_cases.py` and `deno run --allow-read tests/web/rules_test.js` check the rules code of the page against python-chess and the perft numbers. Speed in Chrome's engine on one thread: about 190,000 nodes per second with SIMD and 110,000 without (the native AVX2 build: 1.1 million).
+
+`kestrel_net_3_2.pk.gz` is the network with the int16 weights of the first layer split into a plane of low bytes and a plane of high bytes (the high bytes are almost all 0 or -1), then gzip level 9: 58 % of the size instead of 69 % for plain gzip. The page (`engine-worker.js`) unpacks it while it copies the data into the engine's memory and checks the SHA-256 of the result. The 3.2 network is the one of 3.0 and 3.1; a later network needs its own packed file (`netUrl`, `netSize`, `netSha256`, `shuffleCount` and `cacheName` in `docs/play/play.js`).
+
+What the page does not have: more than one thread, tablebases, an opening book (the first moves of the strong levels are varied with `MultiPV`), pondering, analysis of the played game.

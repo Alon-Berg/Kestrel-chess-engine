@@ -4,7 +4,7 @@
 
 A UCI chess engine in one C++17 file, written by [Claude](https://www.anthropic.com/claude), an AI model made by Anthropic, with one exception: the Syzygy tablebase reader inside it is [Fathom](https://github.com/jdart1/Fathom) (MIT licence, see [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)). Since version 2.0 it judges every position with one large neural network (39.1 million parameters) that is stored inside the executable.
 
-**[Download the latest release](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest)** (Windows, Linux, macOS) · [Web page](https://alon-berg.github.io/Kestrel-chess-engine/) · [Changelog](CHANGELOG.md) · [UCI options](docs/OPTIONS.md) · [Syzygy tablebases](docs/SYZYGY.md) · licence MIT
+**[Download the latest release](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest)** (Windows, Linux, macOS) · [Web page](https://alon-berg.github.io/Kestrel-chess-engine/) · [Play in the browser](https://alon-berg.github.io/Kestrel-chess-engine/play/) · [Changelog](CHANGELOG.md) · [UCI options](docs/OPTIONS.md) · [Syzygy tablebases](docs/SYZYGY.md) · licence MIT
 
 ## Strength
 

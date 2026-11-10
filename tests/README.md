@@ -21,4 +21,11 @@ Black-box tests: every script takes the path of a Kestrel executable and talks t
 | `depth1_test.py <exe> [threads=128] [trials=40] [movetime=60]` | Kestrel 3.1 and later: short searches with many threads must still search. `go movetime 60` with 128 threads in three positions (one of them a stalemate trap): every search must print at least one `info depth` line and the engine must not play the stalemating move. Kestrel 3.0 and the first 3.1 candidate fail it on a computer with fewer processors than threads or a busy one (39 of 60 searches ended before depth 1 with 128 threads on a busy 22-processor laptop, because the helper threads took longer to start than the hard limit and the first time check of a thread runs at node 0); since 3.1 a time limit cannot end a search before depth 1 has completed. Last line: `depth1_test: PASS` or `depth1_test: FAIL (...)` |
 | `BENCH` | the depth-12 bench node count of the source in `src/` (`kestrel bench 12`) |
 
+Tests of the play page (`docs/play`, WebAssembly build); they need Deno (https://deno.com) and, for the first one, `pip install chess`:
+
+| Script | What it checks |
+|---|---|
+| `web/gen_rules_cases.py [games] [seed]`, then `deno run --allow-read web/rules_test.js` | the rules code of the page (`docs/play/rules.js`) against python-chess: legal moves, SAN, the position after every move, check / checkmate / stalemate / insufficient material / fifty-move flags on about 29,000 positions of random games (and the six standard perft positions) |
+| `deno run --allow-read web/wasm_bench_test.js <kestrel_net.bin>` | `kestrel.wasm` and `kestrel-nosimd.wasm` give the native results: bench 12 = 859,322 nodes, the start position to depth 12 = 63,397 nodes, `go infinite` refused |
+
 The long test suite that also builds the engine with AddressSanitizer / UBSan, and the scripts that need local data files, are not part of this repository; their logs are in `logs/`.
