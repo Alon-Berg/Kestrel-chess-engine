@@ -43,6 +43,7 @@
           <button type="button" class="btn" data-side="r">Random</button>
         </div>
         <label class="field"><span>Level</span><select id="level"></select></label>
+        <p id="levelnote" class="levelnote"></p>
         <label class="field"><span>Thinking time</span><select id="time"></select></label>
         <label class="check"><input type="checkbox" id="showthink" checked> Show what Kestrel is calculating</label>
       </div>
@@ -66,7 +67,7 @@
     <h2>How this works</h2>
     <p>This is the real Kestrel 3.2 engine, compiled to WebAssembly and run by your browser on one thread. It gives the same moves and the same node counts as the Windows, Linux and macOS programs (the standard 8-position benchmark searches 859,322 nodes in both); it is slower because it uses one thread and no AVX2 (about a sixth of the speed of the Windows program on the same computer)<span id="simd"></span>.
       The first visit loads Kestrel&rsquo;s 76 MB neural network (about 50 MB over the network, packed); your browser keeps a copy for the next visit. Nothing is sent anywhere: the game and the engine stay on your device.</p>
-    <p><strong>Levels.</strong> Levels 1 to 8 limit how many positions Kestrel may search for each move (the engine&rsquo;s <code>UCI_Elo</code> option). The numbers are rough guides, not ratings from games against people. &ldquo;Full strength&rdquo; uses all the thinking time you choose. Kestrel varies its first moves a little at the strong levels.</p>
+    <p><strong>Levels.</strong> A level decides how many moves ahead Kestrel looks and how careless it is. The lower levels look only a move or two ahead, often pick the second or third best move, and now and then overlook something completely, the way a weaker player does, instead of just thinking less. The number in the menu is a rough guide: I matched the size of the mistakes of each level to what players of that rating typically make; it is not a rating from games against people. &ldquo;Full strength&rdquo; is Kestrel itself and uses all the thinking time you choose. Every level varies its first moves a little.</p>
     <p>Looking for the engine itself, for your chess program? <a href="../#download">Download Kestrel</a> &middot; <a href="https://github.com/Alon-Berg/Kestrel-chess-engine">source code</a> (MIT licence).</p>
   </section>
 </main>

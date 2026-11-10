@@ -1,0 +1,14 @@
+[
+  {"depth": 1, "k": 8, "temp": 800, "slip": 0.30},
+  {"depth": 1, "k": 8, "temp": 430, "slip": 0.17},
+  {"depth": 1, "k": 8, "temp": 260, "slip": 0.10},
+  {"depth": 1, "k": 8, "temp": 130, "slip": 0.052},
+  {"depth": 2, "k": 6, "temp": 175, "slip": 0.07},
+  {"depth": 3, "k": 5, "temp": 160, "slip": 0.064},
+  {"depth": 3, "k": 5, "temp": 112, "slip": 0.045},
+  {"depth": 4, "k": 4, "temp": 100, "slip": 0.04},
+  {"depth": 4, "k": 4, "temp": 55, "slip": 0.022},
+  {"depth": 5, "k": 4, "temp": 40, "slip": 0.016},
+  {"nodes": 4096, "k": 2, "temp": 15, "slip": 0},
+  {"nodes": 16384, "k": 1, "temp": 0, "slip": 0}
+]

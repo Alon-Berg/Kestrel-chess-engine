@@ -74,6 +74,8 @@ h2{font:700 1.5rem/1.15 var(--display);margin:0 0 .6rem}
 .field{display:grid;grid-template-columns:7.5rem minmax(0,1fr);align-items:center;gap:.6rem;font-size:.95rem}
 .field span{color:var(--muted)}
 select{font:inherit;padding:.4rem .5rem;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--ink);min-width:0}
+select:disabled{opacity:.5}
+.levelnote{margin:-.2rem 0 0;font-size:.88rem;color:var(--muted);text-wrap:pretty}
 .check{display:flex;gap:.5rem;align-items:center;font-size:.92rem;color:var(--muted)}
 .moves{margin:0;padding:.5rem .7rem;list-style:none;height:11rem;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:6px;font:.92rem/1.7 var(--mono)}
 .moves li{display:flex;gap:.8rem}

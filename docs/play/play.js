@@ -2,6 +2,7 @@
 import { Position, START_FEN, parseUci, moveUci, moveSan, gameStatus, buildPgn, sqName } from './rules.js';
 import { BoardView, pieceGlyph } from './board.js';
 import { Engine, parseInfo } from './engine.js';
+import { LEVELS, DEFAULT_RATING, chooseMove, levelBlurb, levelForRating } from './levels.js';
 
 const VERSION = '3.2';
 const CONFIG = {
@@ -16,24 +17,13 @@ const CONFIG = {
   hash: 32,                          // MB of hash table
 };
 
-/* UCI_Elo makes Kestrel search a limited number of positions per move (4000 * 2^((Elo - 2400) / 100)); the numbers are rough guides */
-const LEVELS = [
-  { name: 'Level 1 (about 1300)', elo: 1320 },
-  { name: 'Level 2 (about 1500)', elo: 1500 },
-  { name: 'Level 3 (about 1700)', elo: 1700 },
-  { name: 'Level 4 (about 1900)', elo: 1900 },
-  { name: 'Level 5 (about 2100)', elo: 2100 },
-  { name: 'Level 6 (about 2300)', elo: 2300 },
-  { name: 'Level 7 (about 2500)', elo: 2500 },
-  { name: 'Level 8 (about 2800)', elo: 2800 },
-  { name: 'Full strength', elo: 0 },
-];
+const OLD_LEVEL_RATINGS = [1300, 1500, 1700, 1900, 2100, 2300, 2500, 2800, 0];      // what the level numbers of the first version of the page were called
 const TIMES = [[500, '0.5 seconds'], [1000, '1 second'], [2000, '2 seconds'], [5000, '5 seconds'], [10000, '10 seconds']];
 const STORE = 'kestrel-play-v1';
 
 const $ = (id) => document.getElementById(id);
 const S = {
-  startFen: START_FEN, moves: [], human: 'w', level: 3, thinkMs: 2000, flipped: false, over: null, token: 0, thinking: false, showThink: true, resigning: false,
+  startFen: START_FEN, moves: [], human: 'w', level: levelForRating(DEFAULT_RATING), thinkMs: 2000, flipped: false, over: null, token: 0, thinking: false, showThink: true, resigning: false,
 };
 let positions = [Position.fromFEN(START_FEN)];
 let keys = [positions[0].key()];
@@ -164,22 +154,24 @@ async function engineTurn() {
   const lvl = LEVELS[S.level];
   const posCmd = 'position fen ' + S.startFen + (S.moves.length ? ' moves ' + S.moves.join(' ') : '');
   const pos = cur();
-  const variety = positions.length <= 9 && (lvl.elo === 0 || lvl.elo >= 2300);          // a little variety in the opening
-  let limit = ['setoption name UCI_LimitStrength value ' + (lvl.elo ? 'true' : 'false')].concat(lvl.elo ? ['setoption name UCI_Elo value ' + lvl.elo] : []);
-  if (S.needNewGame) { limit = ['ucinewgame'].concat(limit); S.needNewGame = false; }
+  const t0 = performance.now();
   let chosen = null;
   try {
-    if (variety) {
-      const lines = await engine.run(limit.concat(['setoption name MultiPV value 4', posCmd, 'go movetime 250', 'setoption name MultiPV value 1']), (l) => { if (tk === S.token) showThink(l, pos); });
-      if (tk !== S.token) return;
-      chosen = pickVaried(lines, pos);
-    }
-    if (!chosen) {
-      const lines = await engine.run(limit.concat(['setoption name MultiPV value 1', posCmd, 'go movetime ' + S.thinkMs]), (l) => { if (tk === S.token) showThink(l, pos); });
-      if (tk !== S.token) return;
-      const bm = lines.filter((l) => l.startsWith('bestmove')).pop();
-      const u = bm ? bm.split(' ')[1] : null;
-      chosen = u ? parseUci(pos, u) : null;
+    // levels.js decides how deeply Kestrel looks and how carelessly it chooses (see there); the engine itself is always at full strength
+    const run = (cmds, onLine) => {
+      if (S.needNewGame) { cmds = ['ucinewgame'].concat(cmds); S.needNewGame = false; }
+      return engine.run(cmds, onLine);
+    };
+    const r = await chooseMove({
+      level: lvl, run, posCmd, legal: pos.legalMoves().map(moveUci), ply: S.moves.length, thinkMs: S.thinkMs,
+      onLine: (l) => { if (tk === S.token) showThink(l, pos); },
+    });
+    if (tk !== S.token) return;
+    chosen = r ? parseUci(pos, r.uci) : null;
+    // a weaker level answers at once; wait a moment so that the reply does not come before the player has seen their own move
+    if (!lvl.full) {
+      const wait = 450 + Math.random() * 450 - (performance.now() - t0);
+      if (wait > 0) { await new Promise((res) => setTimeout(res, wait)); if (tk !== S.token) return; }
     }
   } catch (e) {
     if (tk !== S.token) return;
@@ -189,21 +181,6 @@ async function engineTurn() {
   if (!chosen) { const all = pos.legalMoves(); chosen = all[Math.floor(Math.random() * all.length)]; S.fallbacks = (S.fallbacks || 0) + 1; }       // should not happen
   S.thinking = false;
   playMove(chosen, true);
-}
-
-/* the best of the last complete MultiPV round, or one of the moves within 25 centipawns of it (opening variety) */
-function pickVaried(lines, pos) {
-  const infos = lines.map(parseInfo).filter(Boolean);
-  if (!infos.length) return null;
-  const depth = Math.max(...infos.map((i) => i.depth));
-  const top = infos.filter((i) => i.depth === depth && i.pv.length).sort((a, b) => a.multipv - b.multipv);
-  if (!top.length) return null;
-  const best = top[0];
-  const pool = best.mate ? [best] : top.filter((i) => !i.mate && i.score >= best.score - 25);
-  const weights = pool.map((_, k) => (k === 0 ? 2 : 1));
-  let r = Math.random() * weights.reduce((a, b) => a + b, 0), k = 0;
-  while (k < pool.length - 1 && r >= weights[k]) { r -= weights[k]; k++; }
-  return parseUci(pos, pool[k].pv[0]);
 }
 
 /* ---------------------------------------------------------------- display */
@@ -275,7 +252,7 @@ function renderStatus() {
 
 /* ---------------------------------------------------------------- storage and settings */
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ startFen: S.startFen, moves: S.moves, human: S.human, level: S.level, thinkMs: S.thinkMs, flipped: S.flipped, over: S.over, showThink: S.showThink })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(STORE, JSON.stringify({ startFen: S.startFen, moves: S.moves, human: S.human, rating: LEVELS[S.level].rating, thinkMs: S.thinkMs, flipped: S.flipped, over: S.over, showThink: S.showThink })); } catch (e) { /* private mode */ }
 }
 
 function load() {
@@ -283,7 +260,8 @@ function load() {
   try { d = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { d = null; }
   if (!d) return false;
   try {
-    if (Number.isInteger(d.level) && d.level >= 0 && d.level < LEVELS.length) S.level = d.level;
+    if (Number.isInteger(d.rating)) S.level = levelForRating(d.rating);                                       // 0 = full strength
+    else if (Number.isInteger(d.level) && d.level >= 0 && d.level < OLD_LEVEL_RATINGS.length) S.level = levelForRating(OLD_LEVEL_RATINGS[d.level]);     // a game saved by the first version of the page
     if (TIMES.some((t) => t[0] === d.thinkMs)) S.thinkMs = d.thinkMs;
     S.showThink = d.showThink !== false;
     if (d.human === 'w' || d.human === 'b') S.human = d.human;
@@ -324,8 +302,13 @@ function init() {
   let customFen = null;
   if (q.get('fen')) { try { customFen = Position.fromFEN(q.get('fen')).fen(); } catch (e) { customFen = null; } }
   const restored = customFen ? false : load();
-  sel.value = S.level; ts.value = S.thinkMs; $('showthink').checked = S.showThink;
-  sel.onchange = () => { S.level = +sel.value; save(); };
+  const showLevel = () => {
+    const l = LEVELS[S.level];
+    $('levelnote').textContent = levelBlurb(l);
+    ts.disabled = !l.full; ts.title = l.full ? '' : 'Only full strength uses the thinking time; the other levels think for a fixed amount';
+  };
+  sel.value = S.level; ts.value = S.thinkMs; $('showthink').checked = S.showThink; showLevel();
+  sel.onchange = () => { S.level = +sel.value; showLevel(); save(); };
   ts.onchange = () => { S.thinkMs = +ts.value; save(); };
   $('showthink').onchange = (e) => { S.showThink = e.target.checked; if (!S.showThink) $('think').textContent = ''; save(); };
   document.querySelectorAll('[data-side]').forEach((b) => { b.onclick = () => newGame(b.dataset.side); });

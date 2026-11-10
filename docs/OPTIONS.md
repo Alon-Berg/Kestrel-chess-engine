@@ -11,8 +11,8 @@ Add the executable to any UCI program (Cute Chess, Arena, En Croissant, Lucas Ch
 | `MultiPV` | spin | 1 | 1 - 8 | Number of lines reported. |
 | `Ponder` | check | false | | Think on the opponent's time (the GUI sends `go ponder`). |
 | `Clear Hash` | button | | | Empties the transposition table and the history tables. |
-| `UCI_LimitStrength` | check | false | | Play weaker: the nodes searched per move are limited according to `UCI_Elo` (approximate, not calibrated against rated players). Use one thread: the limit counts the nodes of the main thread only, so with more threads the helpers add search and the engine is stronger than set. |
-| `UCI_Elo` | spin | 3200 | 1320 - 3200 | Target rating for `UCI_LimitStrength`. |
+| `UCI_LimitStrength` | check | false | | Play weaker: the nodes searched per move are limited according to `UCI_Elo` (4000 · 2^((Elo - 2400) / 100) nodes; not calibrated against rated players). **Known limit:** the engine looks at its node count only every 2,048 nodes, so every `UCI_Elo` below about 2300 searches the same 1,000 to 2,000 nodes (depth 4 to 7) and plays at the same strength, far above what the number says (this is why the [play page](https://alon-berg.github.io/Kestrel-chess-engine/play/) does not use it: its levels limit the depth instead and choose among the best moves with some randomness, see `docs/play/levels.js`). Use one thread: the limit counts the nodes of the main thread only, so with more threads the helpers add search and the engine is stronger than set. |
+| `UCI_Elo` | spin | 3200 | 1320 - 3200 | Target rating for `UCI_LimitStrength` (settings below about 2300 all play alike, see there). |
 | `UseNNUE` | check | true | | The network. Switch it off only for tests: the engine then falls back to the old hand-written evaluation, which is much weaker. |
 | `Experience` | check | false | | Position learning: remembers moves that won or lost in earlier games and replays or avoids them. The file is written when games end. (2.0: on.) |
 | `ExperienceFile` | string | `kestrel_experience_v2.dat` | | Where the learning file lives (a bare name means next to the executable). |

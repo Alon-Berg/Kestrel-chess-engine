@@ -27,5 +27,7 @@ Tests of the play page (`docs/play`, WebAssembly build); they need Deno (https:/
 |---|---|
 | `web/gen_rules_cases.py [games] [seed]`, then `deno run --allow-read web/rules_test.js` | the rules code of the page (`docs/play/rules.js`) against python-chess: legal moves, SAN, the position after every move, check / checkmate / stalemate / insufficient material / fifty-move flags on about 29,000 positions of random games (and the six standard perft positions) |
 | `deno run --allow-read web/wasm_bench_test.js <kestrel_net.bin>` | `kestrel.wasm` and `kestrel-nosimd.wasm` give the native results: bench 12 = 859,322 nodes, the start position to depth 12 = 63,397 nodes, `go infinite` refused |
+| `deno run web/levels_test.js` | the levels of the page (`docs/play/levels.js`) without an engine: the table is ordered (ratings up, depth up, carelessness down), the engine's lines are read correctly, moves are chosen with the stated weights, a won position makes a level steadier, the commands sent to the engine |
+| `deno run --allow-read web/levels_engine_test.js <kestrel_net.bin>` | every level with the real WebAssembly engine: a legal move in five positions, inside its depth limit, the same move for the same random numbers, a mate in one found from Level 7 up in at least 19 of 20 tries, weaker levels agree less often with the best move (about 3 minutes) |
 
 The long test suite that also builds the engine with AddressSanitizer / UBSan, and the scripts that need local data files, are not part of this repository; their logs are in `logs/`.

@@ -5,3 +5,5 @@ kestrel_experience*
 build/
 kestrel_net*.bin
 tests/web/rules_cases.json
+tests/web/levels_lab/out/
+tests/web/levels_lab/eval_cache*.json
