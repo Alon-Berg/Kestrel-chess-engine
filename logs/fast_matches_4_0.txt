@@ -1,0 +1,72 @@
+Kestrel 4.0: result lines of the matches (fastchess through my_engine\match3.py: colours swapped, the same opening for both games of a round, 1 thread, Hash 64 (16 for the node-limited matches), no book, no learning, every engine process at full speed).
+'Elo of A' is the first engine, with the 95 % interval of fastchess. 'nodes=N' = every move is searched to N nodes; '[adjudicated]' = games ended by a resign / draw rule (4 moves beyond 600 cp / from move 40 within 15 cp).
+Names: base = the 3.2 search in the 4.0 source; combo = base + the two move-ordering changes; vsel = combo + the speed changes; fin1 = vsel + quiescence-search TT use (if present); k41c_v_* = one idea against combo.
+
+== release matches: the packaged Windows x86-64-v3 exe of 4.0 (A) against the packaged exe of 3.2 (B)
+11-12 22:24  rel40_3p0.03: A=windows_x86-64-v3/kestrel.exe [] vs B=kestrel_release_3_2/Kestrel-3.2-windows-x86-64-v3.exe [], 3+0.03, 2000 rounds x2 (92 min): Elo of A 31.88 +/- 5.80, games 4000, W 1270 L 904 D 1826 | terminations {'normal': 3994, 'time forfeit': 6}
+11-13 00:07  rel40_5p0.1: A=windows_x86-64-v3/kestrel.exe [] vs B=kestrel_release_3_2/Kestrel-3.2-windows-x86-64-v3.exe [], 5+0.1, 1000 rounds x2 (103 min): Elo of A 26.81 +/- 7.12, games 2000, W 591 L 437 D 972 | terminations {'normal': 2000}
+
+== development build with all 4.0 changes (A) against the 3.2 release exe (B), 3 s + 0.03 s
+11-12 13:59  k41c_t_vsel_vs32_3p003: A=vsel/k41.exe [] vs B=kestrel_release_3_2/Kestrel-3.2-windows-x86-64-v3.exe [], 3+0.03, 2000 rounds x2 (91 min): Elo of A 41.89 +/- 5.80, games 4000, W 1292 L 812 D 1896 | terminations {'normal': 4000}
+
+== the two move-ordering changes ('combo') and their parts against the same build without them (A = with)
+11-12 03:04  k41b_n20k_thr2: A=thr2/k41.exe [] vs B=base/k41.exe [], nodes=20000, 2000 rounds x2 (55 min): Elo of A -2.95 +/- 5.83, games 4000, W 1112 L 1146 D 1742 | terminations {'normal': 4000}
+11-12 04:00  k41b_n20k_ord: A=ord/k41.exe [] vs B=base/k41.exe [], nodes=20000, 2000 rounds x2 (56 min): Elo of A 12.08 +/- 6.15, games 4000, W 1198 L 1059 D 1743 | terminations {'normal': 4000}
+11-12 04:56  k41b_n20k_thr1: A=thr1/k41.exe [] vs B=base/k41.exe [], nodes=20000, 2000 rounds x2 (56 min): Elo of A 9.99 +/- 6.28, games 4000, W 1200 L 1085 D 1715 | terminations {'normal': 4000}
+11-12 05:52  k41b_n20k_thr3: A=thr3/k41.exe [] vs B=base/k41.exe [], nodes=20000, 2000 rounds x2 (55 min): Elo of A 10.60 +/- 6.11, games 4000, W 1206 L 1084 D 1710 | terminations {'normal': 4000}
+11-12 06:47  k41b_n20k_evh2: A=evh2/k41.exe [] vs B=base/k41.exe [], nodes=20000, 2000 rounds x2 (56 min): Elo of A -46.13 +/- 6.30, games 4000, W 889 L 1417 D 1694 | terminations {'normal': 4000}
+11-12 07:43  k41b_n20k_combo: A=combo/k41.exe [] vs B=base/k41.exe [], nodes=20000, 2000 rounds x2 (56 min): Elo of A 22.88 +/- 6.09, games 4000, W 1250 L 987 D 1763 | terminations {'normal': 4000}
+11-12 09:15  k41b_3p003_combo: A=combo/k41.exe [] vs B=base/k41.exe [], 3+0.03, 2000 rounds x2 (91 min): Elo of A 10.77 +/- 5.64, games 4000, W 1137 L 1013 D 1850 | terminations {'normal': 3999, 'time forfeit': 1}
+
+== first round: exact speed variants and ideas against the 3.2-search build (nodes=20000 unless the tag says 3p003)
+11-11 21:28  k41a_n20k_spd2: A=spd2/k41.exe [] vs B=spd1/k41.exe [], nodes=20000, 2000 rounds x2 (59 min): Elo of A 2.35 +/- 6.02, games 4000, W 1142 L 1115 D 1743 | terminations {'normal': 4000}
+11-11 22:28  k41a_n20k_nochk: A=nochk/k41.exe [] vs B=spd1/k41.exe [], nodes=20000, 2000 rounds x2 (59 min): Elo of A -0.09 +/- 6.12, games 4000, W 1110 L 1111 D 1779 | terminations {'normal': 4000}
+11-11 23:28  k41a_n20k_threat: A=threat/k41.exe [] vs B=spd1/k41.exe [], nodes=20000, 2000 rounds x2 (60 min): Elo of A 10.34 +/- 6.27, games 4000, W 1203 L 1084 D 1713 | terminations {'normal': 4000}
+11-12 00:26  k41a_n20k_evh: A=evh/k41.exe [] vs B=spd1/k41.exe [], nodes=20000, 2000 rounds x2 (58 min): Elo of A -33.72 +/- 6.17, games 4000, W 944 L 1331 D 1725 | terminations {'normal': 4000}
+11-12 01:57  k41a_3p003_spd2: A=spd2/k41.exe [] vs B=base/k41.exe [], 3+0.03, 2000 rounds x2 (91 min): Elo of A 3.21 +/- 5.63, games 4000, W 1073 L 1036 D 1891 | terminations {'normal': 4000}
+
+== speed changes and the quiescence-search TT use against combo (A = with), 20,000 nodes per move
+11-12 10:22  k41c_v_qtt: A=qtt/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (23 min): Elo of A 11.30 +/- 8.30, games 2000, W 581 L 516 D 903 | terminations {'adjudication': 1491, 'normal': 509}
+11-12 10:46  k41c_v_qtt_s2: A=qtt/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A 6.95 +/- 8.26, games 2000, W 577 L 537 D 886 | terminations {'adjudication': 1558, 'normal': 442}
+11-12 11:15  k41c_v_qcorr: A=qcorr/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A -1.39 +/- 8.36, games 2000, W 555 L 563 D 882 | terminations {'adjudication': 1456, 'normal': 544}
+11-12 11:42  k41c_v_sp3: A=sp3/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (22 min): Elo of A -2.26 +/- 8.28, games 2000, W 536 L 549 D 915 | terminations {'adjudication': 1532, 'normal': 468}
+11-12 12:03  k41c_v_est5: A=est5/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (21 min): Elo of A 2.43 +/- 8.33, games 2000, W 554 L 540 D 906 | terminations {'normal': 465, 'adjudication': 1535}
+11-12 12:25  k41c_v_est5_s2: A=est5/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (22 min): Elo of A -2.78 +/- 8.44, games 2000, W 532 L 548 D 920 | terminations {'adjudication': 1512, 'normal': 488}
+11-12 18:44  k41c_v_fin1: A=fin1/k41.exe [] vs B=vsel/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (39 min): Elo of A 7.82 +/- 8.49, games 2000, W 590 L 545 D 865 | terminations {'normal': 441, 'adjudication': 1559}
+11-12 19:05  k41c_v_fin1_s2: A=fin1/k41.exe [] vs B=vsel/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (21 min): Elo of A 4.52 +/- 8.57, games 2000, W 566 L 540 D 894 | terminations {'adjudication': 1516, 'normal': 484}
+
+== debug build that stops when the staged move generation differs from the full one (A) against vsel (B), 5,000 nodes per move
+11-12 14:33  k41c_stagedbg_vs_vsel: A=stagedbg/k41.exe [] vs B=vsel/k41.exe [], nodes=5000 [adjudicated], 1500 rounds x2 (11 min): Elo of A -2.90 +/- 7.83, games 3000, W 913 L 938 D 1149 | terminations {'adjudication': 2356, 'normal': 644}
+
+== ideas against combo, 20,000 nodes per move (none adopted)
+11-12 10:22  k41c_v_qtt: A=qtt/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (23 min): Elo of A 11.30 +/- 8.30, games 2000, W 581 L 516 D 903 | terminations {'adjudication': 1491, 'normal': 509}
+11-12 10:46  k41c_v_qtt_s2: A=qtt/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A 6.95 +/- 8.26, games 2000, W 577 L 537 D 886 | terminations {'adjudication': 1558, 'normal': 442}
+11-12 11:15  k41c_v_qcorr: A=qcorr/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A -1.39 +/- 8.36, games 2000, W 555 L 563 D 882 | terminations {'adjudication': 1456, 'normal': 544}
+11-12 11:42  k41c_v_sp3: A=sp3/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (22 min): Elo of A -2.26 +/- 8.28, games 2000, W 536 L 549 D 915 | terminations {'adjudication': 1532, 'normal': 468}
+11-12 12:03  k41c_v_est5: A=est5/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (21 min): Elo of A 2.43 +/- 8.33, games 2000, W 554 L 540 D 906 | terminations {'normal': 465, 'adjudication': 1535}
+11-12 12:25  k41c_v_est5_s2: A=est5/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (22 min): Elo of A -2.78 +/- 8.44, games 2000, W 532 L 548 D 920 | terminations {'adjudication': 1512, 'normal': 488}
+11-12 14:22  k41c_v_thr4: A=thr4/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A -4.17 +/- 8.34, games 2000, W 544 L 568 D 888 | terminations {'adjudication': 1528, 'normal': 472}
+11-12 14:57  k41c_v_alphared: A=alphared/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A -12.69 +/- 8.64, games 2000, W 543 L 616 D 841 | terminations {'adjudication': 1559, 'normal': 441}
+11-12 15:24  k41c_v_chkb: A=chkb/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (26 min): Elo of A -5.04 +/- 8.41, games 2000, W 532 L 561 D 907 | terminations {'adjudication': 1537, 'normal': 463}
+11-12 15:54  k41c_v_ttpv: A=ttpv/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (30 min): Elo of A 8.86 +/- 8.66, games 2000, W 585 L 534 D 881 | terminations {'normal': 471, 'adjudication': 1529}
+11-12 16:27  k41c_v_ttpv_s2: A=ttpv/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (33 min): Elo of A -7.47 +/- 8.68, games 2000, W 522 L 565 D 913 | terminations {'adjudication': 1541, 'normal': 459}
+11-12 17:01  k41c_v_prx1: A=prx1/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (34 min): Elo of A 4.00 +/- 8.16, games 2000, W 558 L 535 D 907 | terminations {'adjudication': 1545, 'normal': 455}
+11-12 18:01  k41c_v_prx1_s2: A=prx1/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (60 min): Elo of A 8.34 +/- 8.79, games 2000, W 579 L 531 D 890 | terminations {'adjudication': 1546, 'normal': 454}
+11-12 18:44  k41c_v_fin1: A=fin1/k41.exe [] vs B=vsel/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (39 min): Elo of A 7.82 +/- 8.49, games 2000, W 590 L 545 D 865 | terminations {'normal': 441, 'adjudication': 1559}
+11-12 19:05  k41c_v_fin1_s2: A=fin1/k41.exe [] vs B=vsel/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (21 min): Elo of A 4.52 +/- 8.57, games 2000, W 566 L 540 D 894 | terminations {'adjudication': 1516, 'normal': 484}
+11-12 19:29  k41c_v_caplmr: A=caplmr/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (24 min): Elo of A 1.56 +/- 5.11, games 2000, W 579 L 570 D 851 | terminations {'adjudication': 1582, 'normal': 418}
+11-12 20:00  k41c_v_futh: A=futh/k41.exe [] vs B=combo/k41.exe [], nodes=20000 [adjudicated], 1000 rounds x2 (28 min): Elo of A -0.69 +/- 8.87, games 2000, W 579 L 583 D 838 | terminations {'adjudication': 1576, 'normal': 424}
+
+== switched-off options of the older versions against the same build with defaults, 20,000 nodes per move (none adopted)
+(none)
+
+== other development matches of the 4.x work
+11-12 09:54  k41c_fl_capH: A=tcombo/k41.exe ['K22Flags=1'] vs B=tcombo/k41.exe [], nodes=20000, 1000 rounds x2 (29 min): Elo of A 2.08 +/- 8.64, games 2000, W 562 L 550 D 888 | terminations {'normal': 2000}
+
+== speed: depth-12 bench (best nps of interleaved runs on a cooled machine, % against the 3.2-search build 'base'; the node counts differ because the trees differ)
+11-12 12:28:10  BENCH   est5     nodes 712768     best nps 1295941     +8.7 % vs base   other tree
+11-12 12:28:10  BENCH   vsel     nodes 712768     best nps 1365455    +14.6 % vs base   other tree
+11-12 19:33:04  BENCH   base     nodes 859322     best nps 1185271     +0.0 % vs base   SAME TREE
+11-12 19:33:04  BENCH   vsel     nodes 712768     best nps 1365455    +15.2 % vs base   other tree
+11-12 19:33:04  BENCH   fin1     nodes 765158     best nps 1252304     +5.7 % vs base   other tree
+11-12 19:33:04  BENCH   prx1     nodes 606264     best nps 1159204     -2.2 % vs base   other tree

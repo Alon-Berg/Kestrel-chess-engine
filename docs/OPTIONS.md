@@ -1,4 +1,4 @@
-# UCI options of Kestrel 3.2
+# UCI options of Kestrel 4.0
 
 Add the executable to any UCI program (Cute Chess, Arena, En Croissant, Lucas Chess, fastchess, ...). The options below are what `uci` lists; every other option name of earlier versions is accepted and ignored.
 
@@ -16,7 +16,7 @@ Add the executable to any UCI program (Cute Chess, Arena, En Croissant, Lucas Ch
 | `UseNNUE` | check | true | | The network. Switch it off only for tests: the engine then falls back to the old hand-written evaluation, which is much weaker. |
 | `Experience` | check | false | | Position learning: remembers moves that won or lost in earlier games and replays or avoids them. The file is written when games end. (2.0: on.) |
 | `ExperienceFile` | string | `kestrel_experience_v2.dat` | | Where the learning file lives (a bare name means next to the executable). |
-| `EvalFile` | string | `<internal>` | | Load another network file of the same format (see `kestrel_net_3_2.bin` in the release, the same file as `kestrel_net_3_0.bin` and `kestrel_net_3_1.bin`); `<internal>` is the network inside the exe. |
+| `EvalFile` | string | `<internal>` | | Load another network file of the same format (see `kestrel_net_4_0.bin` in the release, the same file as `kestrel_net_3_0.bin`, `kestrel_net_3_1.bin` and `kestrel_net_3_2.bin`); `<internal>` is the network inside the exe. |
 | `EvalScale` | spin | 100 | 50 - 200 | Percent: multiplies the network's output. 100 was best in a test of 60, 80, 125 and 160 (600 games each); changing it is not recommended. |
 | `SyzygyPath` | string | `<empty>` | | New in 3.0. Folders with Syzygy tablebase files (`;` between folders on Windows, `:` on Linux and macOS). Empty = no tablebases. See [SYZYGY.md](SYZYGY.md). |
 | `SyzygyProbeDepth` | spin | 1 | 1 - 100 | New in 3.0. Probe inside the search only at nodes with at least this remaining depth. |

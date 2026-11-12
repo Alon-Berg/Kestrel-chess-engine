@@ -1,0 +1,32 @@
+PASS GCC build   0 warnings
+PASS clang ASan+UBSan build
+PASS acctest (hash/PST/net accumulators)   acctest: checked 185934 positions, mismatches 0
+PASS perft suite   6/6 OK
+PASS perft vs python-chess (depth 3)   positions 2600 depth 3 mismatches 0
+PASS evaluation mirror symmetry   positions 1500 | max |eval - mirrored eval| = 0 | above 12 cp: 0 | mean diff 0.00
+PASS PV legality / mate consistency   positions 250 | info lines checked 2294 | mate lines 442 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS UCI fuzzer seed 1   sequences 400 | failures 0
+PASS UCI fuzzer seed 2   sequences 400 | failures 0
+PASS go infinite + immediate stop   runs 20 hung (no bestmove within 5 s): 0 | slowest start 0.2 s
+PASS go infinite waits for stop   bestmove printed BEFORE stop: False | after stop: ['bestmove d1d8']
+PASS Syzygy vs python-chess (GCC build)   4. conversion: 15 of 15 won endgames converted to a mate tb_test: PASS
+PASS UCI features (MultiPV, ponder, Clear Hash, limit strength, threads)   13 checks, 0 failed
+PASS ASan/UBSan acctest   acctest: checked 185934 positions, mismatches 0
+PASS ASan/UBSan perft suite   6/6 OK
+PASS ASan/UBSan bench   bench: nodes 712768 time 8119 ms nps 87790
+PASS ASan/UBSan UCI fuzzer   sequences 400 | failures 0
+PASS ASan/UBSan PV check   positions 100 | info lines checked 867 | mate lines 149 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS ASan/UBSan Syzygy vs python-chess   4. conversion: 3 of 3 won endgames converted to a mate tb_test: PASS
+PASS GCC build, 4 threads by default   0 warnings
+PASS clang ASan+UBSan build, 4 threads by default
+PASS 4 threads: Syzygy vs python-chess   4. conversion: 5 of 5 won endgames converted to a mate tb_test: PASS
+PASS 4 threads: PV legality / mate consistency   positions 200 | info lines checked 1834 | mate lines 326 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS 4 threads: UCI fuzzer   sequences 400 | failures 0
+PASS 4 threads: go infinite + immediate stop   runs 20 hung (no bestmove within 5 s): 0 | slowest start 0.2 s
+PASS 4 threads: go infinite waits for stop   bestmove printed BEFORE stop: False | after stop: ['bestmove d1d8']
+PASS 4 threads: bench completes   bench: nodes 553144 time 387 ms nps 1429312
+PASS 4 threads ASan/UBSan: bench   bench: nodes 554221 time 8121 ms nps 68245
+PASS 4 threads ASan/UBSan: UCI fuzzer   sequences 300 | failures 0
+PASS 4 threads ASan/UBSan: PV check   positions 80 | info lines checked 691 | mate lines 136 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+
+k40: 30 checks, 0 failed, 1287 s
