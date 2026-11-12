@@ -2,7 +2,7 @@
 import { Position, START_FEN, parseUci, moveUci, moveSan, gameStatus, buildPgn, sqName } from './rules.js';
 import { BoardView, pieceGlyph } from './board.js';
 import { Engine, parseInfo } from './engine.js';
-import { LEVELS, DEFAULT_RATING, chooseMove, levelBlurb, levelForRating } from './levels.js';
+import { LEVELS, chooseMove } from './levels.js';
 
 const VERSION = '3.2';
 const CONFIG = {
@@ -17,13 +17,13 @@ const CONFIG = {
   hash: 32,                          // MB of hash table
 };
 
-const OLD_LEVEL_RATINGS = [1300, 1500, 1700, 1900, 2100, 2300, 2500, 2800, 0];      // what the level numbers of the first version of the page were called
-const TIMES = [[500, '0.5 seconds'], [1000, '1 second'], [2000, '2 seconds'], [5000, '5 seconds'], [10000, '10 seconds']];
+const FULL = LEVELS.find((l) => l.full);        // the page plays at full strength only: the thinking time is its one setting (the weaker levels of levels.js are not offered)
+const TIMES =[[500, '0.5 seconds'], [1000, '1 second'], [2000, '2 seconds'], [5000, '5 seconds'], [10000, '10 seconds']];
 const STORE = 'kestrel-play-v1';
 
 const $ = (id) => document.getElementById(id);
 const S = {
-  startFen: START_FEN, moves: [], human: 'w', level: levelForRating(DEFAULT_RATING), thinkMs: 2000, flipped: false, over: null, token: 0, thinking: false, showThink: true, resigning: false,
+  startFen: START_FEN, moves: [], human: 'w', thinkMs: 2000, flipped: false, over: null, token: 0, thinking: false, showThink: true, resigning: false,
 };
 let positions = [Position.fromFEN(START_FEN)];
 let keys = [positions[0].key()];
@@ -151,28 +151,21 @@ async function engineTurn() {
   if (S.over) return;
   const tk = ++S.token;
   S.thinking = true; renderStatus(); board.clearSelection();
-  const lvl = LEVELS[S.level];
   const posCmd = 'position fen ' + S.startFen + (S.moves.length ? ' moves ' + S.moves.join(' ') : '');
   const pos = cur();
-  const t0 = performance.now();
   let chosen = null;
   try {
-    // levels.js decides how deeply Kestrel looks and how carelessly it chooses (see there); the engine itself is always at full strength
+    // levels.js picks the move: at full strength the engine's own choice after the thinking time, with a little variety in the first moves
     const run = (cmds, onLine) => {
       if (S.needNewGame) { cmds = ['ucinewgame'].concat(cmds); S.needNewGame = false; }
       return engine.run(cmds, onLine);
     };
     const r = await chooseMove({
-      level: lvl, run, posCmd, legal: pos.legalMoves().map(moveUci), ply: S.moves.length, thinkMs: S.thinkMs,
+      level: FULL, run, posCmd, legal: pos.legalMoves().map(moveUci), ply: S.moves.length, thinkMs: S.thinkMs,
       onLine: (l) => { if (tk === S.token) showThink(l, pos); },
     });
     if (tk !== S.token) return;
     chosen = r ? parseUci(pos, r.uci) : null;
-    // a weaker level answers at once; wait a moment so that the reply does not come before the player has seen their own move
-    if (!lvl.full) {
-      const wait = 450 + Math.random() * 450 - (performance.now() - t0);
-      if (wait > 0) { await new Promise((res) => setTimeout(res, wait)); if (tk !== S.token) return; }
-    }
   } catch (e) {
     if (tk !== S.token) return;
     S.thinking = false; $('status').textContent = 'Kestrel stopped: ' + e.message + ' Start a new game to restart it.'; $('status').classList.add('bad'); return;
@@ -252,7 +245,7 @@ function renderStatus() {
 
 /* ---------------------------------------------------------------- storage and settings */
 function save() {
-  try { localStorage.setItem(STORE, JSON.stringify({ startFen: S.startFen, moves: S.moves, human: S.human, rating: LEVELS[S.level].rating, thinkMs: S.thinkMs, flipped: S.flipped, over: S.over, showThink: S.showThink })); } catch (e) { /* private mode */ }
+  try { localStorage.setItem(STORE, JSON.stringify({ startFen: S.startFen, moves: S.moves, human: S.human, thinkMs: S.thinkMs, flipped: S.flipped, over: S.over, showThink: S.showThink })); } catch (e) { /* private mode */ }
 }
 
 function load() {
@@ -260,8 +253,6 @@ function load() {
   try { d = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch (e) { d = null; }
   if (!d) return false;
   try {
-    if (Number.isInteger(d.rating)) S.level = levelForRating(d.rating);                                       // 0 = full strength
-    else if (Number.isInteger(d.level) && d.level >= 0 && d.level < OLD_LEVEL_RATINGS.length) S.level = levelForRating(OLD_LEVEL_RATINGS[d.level]);     // a game saved by the first version of the page
     if (TIMES.some((t) => t[0] === d.thinkMs)) S.thinkMs = d.thinkMs;
     S.showThink = d.showThink !== false;
     if (d.human === 'w' || d.human === 'b') S.human = d.human;
@@ -293,8 +284,6 @@ async function copyText(text) {
 
 /* ---------------------------------------------------------------- start */
 function init() {
-  const sel = $('level');
-  LEVELS.forEach((l, i) => { const o = document.createElement('option'); o.value = i; o.textContent = l.name; sel.appendChild(o); });
   const ts = $('time');
   TIMES.forEach(([ms, label]) => { const o = document.createElement('option'); o.value = ms; o.textContent = label; ts.appendChild(o); });
   // ?fen=<position>&side=w|b starts from that position (handy for puzzles and endgames; "New game" goes back to the normal start)
@@ -302,13 +291,7 @@ function init() {
   let customFen = null;
   if (q.get('fen')) { try { customFen = Position.fromFEN(q.get('fen')).fen(); } catch (e) { customFen = null; } }
   const restored = customFen ? false : load();
-  const showLevel = () => {
-    const l = LEVELS[S.level];
-    $('levelnote').textContent = levelBlurb(l);
-    ts.disabled = !l.full; ts.title = l.full ? '' : 'Only full strength uses the thinking time; the other levels think for a fixed amount';
-  };
-  sel.value = S.level; ts.value = S.thinkMs; $('showthink').checked = S.showThink; showLevel();
-  sel.onchange = () => { S.level = +sel.value; showLevel(); save(); };
+  ts.value = S.thinkMs; $('showthink').checked = S.showThink;
   ts.onchange = () => { S.thinkMs = +ts.value; save(); };
   $('showthink').onchange = (e) => { S.showThink = e.target.checked; if (!S.showThink) $('think').textContent = ''; save(); };
   document.querySelectorAll('[data-side]').forEach((b) => { b.onclick = () => newGame(b.dataset.side); });

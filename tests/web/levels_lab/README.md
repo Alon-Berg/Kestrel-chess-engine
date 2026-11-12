@@ -1,7 +1,7 @@
 # Measuring the levels of the play page
 
-The levels of the play page (`docs/play/levels.js`) were measured with the programs in this folder. They use the same `levels.js` and the same WebAssembly engine
-as the page, so a number measured here is a number of the page. The table of results is in [`docs/BUILDING.md`](../../../docs/BUILDING.md#the-levels-of-the-page).
+The twelve weaker levels in `docs/play/levels.js` (the play page offers only full strength since 2026-11-12) were measured with the programs in this folder. They use the same
+`levels.js` and the same WebAssembly engine as the page, so a number measured here is a number of the levels. The table of results is in [`docs/BUILDING.md`](../../../docs/BUILDING.md#the-levels-of-the-page).
 
 You need Deno (https://deno.com), Python 3 with `chess` and `numpy`, the network of the release (`kestrel_net_3_2.bin`), and for two of the steps Stockfish and fastchess.
 

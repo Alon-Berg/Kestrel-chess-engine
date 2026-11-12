@@ -120,7 +120,9 @@ What the page does not have: more than one thread, tablebases, an opening book (
 
 ### The levels of the page
 
-**Why the page has its own levels.** The first version took them from the engine's `UCI_Elo` option and they were all one strength: Kestrel looks at its node count only every 2,048 nodes, so every `UCI_Elo` from 1320 up to about 2300 searches 1,000 to 2,000 nodes (depth 4 to 7; in four test positions the program of the release searched 1,564, 1,054, 1,697 and 1,663 nodes at 1320, 1500, 1900 and 2300: the same). The level called "about 1300" played far above its name. The engine was not changed (3.2 is as released; `docs/OPTIONS.md` says what `UCI_Elo` does).
+**Since 2026-11-12 the page offers only full strength** (its one setting is the thinking time). The levels described here were built for it and are still in `docs/play/levels.js` with their tests and measuring programs (`levels.js` also chooses the moves of full strength: the engine's own choice after the thinking time, with a little variety in the first moves); `tests/web/levels_lab/uci_levels.js` is a UCI engine with these levels, so that any chess program can play them.
+
+**Why the page had its own levels.** The first version took them from the engine's `UCI_Elo` option and they were all one strength: Kestrel looks at its node count only every 2,048 nodes, so every `UCI_Elo` from 1320 up to about 2300 searches 1,000 to 2,000 nodes (depth 4 to 7; in four test positions the program of the release searched 1,564, 1,054, 1,697 and 1,663 nodes at 1320, 1500, 1900 and 2300: the same). The level called "about 1300" played far above its name. The engine was not changed (3.2 is as released; `docs/OPTIONS.md` says what `UCI_Elo` does).
 
 **How a level works** (`docs/play/levels.js`, plain data and functions, also used by the test programs). The engine always plays at full strength; a level only limits and disturbs what it is asked:
 

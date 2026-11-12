@@ -1,5 +1,9 @@
 # Changelog
 
+## Play page: full strength only (2026-11-12)
+
+The page has no level menu any more: Kestrel always plays at full strength and the only setting is the thinking time (0.5 to 10 seconds, 2 seconds to start with). The twelve weaker levels of the entry below are not offered on the page; `docs/play/levels.js` (the page still uses it for the first moves of full strength), its tests and the measurements stay, and `tests/web/levels_lab/uci_levels.js` lets any chess program play those levels. A game saved by an earlier version of the page loads as before; its level is ignored.
+
 ## Play page: levels fixed (2026-11-10)
 
 The levels of the first version of the play page were all one strength, far above their names (the level called "about 1300" played much too well). The page took them from the engine's `UCI_Elo` option, and Kestrel looks at its node count only every 2,048 nodes: every `UCI_Elo` from 1320 to about 2300 searches 1,000 to 2,000 nodes (depth 4 to 7; in four test positions the release searched 1,564, 1,054, 1,697 and 1,663 nodes at 1320, 1500, 1900 and 2300). The engine is not changed (3.2 is as released); `docs/OPTIONS.md` now says what `UCI_Elo` does below 2300.
