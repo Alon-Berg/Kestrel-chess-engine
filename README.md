@@ -8,7 +8,7 @@ A UCI chess engine in one C++17 file, written by [Claude](https://www.anthropic.
 
 ## Strength
 
-All numbers are my own, from fastchess matches on one laptop (1 thread, 64 MB hash, no book, no learning, no adjudication, the same openings for both sides, every engine process at full speed with Windows' efficiency throttling switched off). No rating list has tested Kestrel yet. Elo is Kestrel 3.0 against the older version, with fastchess's 95 % interval. Kestrel 3.1 has the network and the search of 3.0 and plays exactly like it with one thread, and 3.2 plays like 3.1 except for the time management of searches with a clock, so the numbers below hold for 3.1 and 3.2 with one thread. Kestrel 4.0 has the same network and a faster, changed search: its numbers are in the paragraph 'Speed and search (4.0)' below.
+All numbers are my own, from fastchess matches on one laptop (1 thread, 64 MB hash, no book, no learning, no adjudication, the same openings for both sides, every engine process at full speed with Windows' efficiency throttling switched off). No rating list has tested Kestrel yet. Elo is Kestrel 3.0 against the older version, with fastchess's 95 % interval. Kestrel 3.1 has the network and the search of 3.0 and plays exactly like it with one thread, and 3.2 plays like 3.1 except for the time management of searches with a clock, so the numbers below hold for 3.1 and 3.2 with one thread. Kestrel 4.0 has the same network and a faster, changed search: its numbers are in the paragraph 'Speed and search (4.0)' below. Kestrel 4.1 plays exactly like 4.0 with one thread (a bug-fix release), so those numbers hold for 4.1.
 
 | Time per game (base + increment, seconds) | Kestrel 3.0 against Kestrel 2.3 |
 |---|---|
@@ -46,10 +46,10 @@ Unzip a release file and add `kestrel.exe` (or `kestrel`) to a UCI program such 
 
 ## Build
 
-The 76 MB network is not stored in git. Download `kestrel_net_4_0.bin` from the [release page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest), save it as `kestrel_net.bin` in the folder where you run the compiler (the assembler looks for it in the **current directory**) and compile:
+The 76 MB network is not stored in git. Download `kestrel_net_4_1.bin` from the [release page](https://github.com/Alon-Berg/Kestrel-chess-engine/releases/latest), save it as `kestrel_net.bin` in the folder where you run the compiler (the assembler looks for it in the **current directory**) and compile:
 
 ```
-g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_4_0.cpp
+g++ -std=c++17 -O3 -march=x86-64-v3 -static -pthread -DNDEBUG -o kestrel path/to/src/kestrel_4_1.cpp
 ```
 
 The source has 128 copies of the search, so the compile takes about 2.6 minutes and 1.1 GB of memory (3.0: 16 s). Other CPUs (x86-64-v2, plain x86-64), Linux, macOS and ARM: [docs/BUILDING.md](docs/BUILDING.md). `kestrel bench 12` must print `bench: nodes 859322`.
@@ -60,7 +60,7 @@ The source has 128 copies of the search, so the compile takes about 2.6 minutes 
 * A 30-check verification with GCC and with clang AddressSanitizer + UBSan builds (also with 4 threads): accumulator self-test over 186,000 positions, perft, perft against python-chess, evaluation mirror symmetry, PV legality, UCI fuzzers, `go infinite` / `stop` races, MultiPV and ponder checks, and for 3.0 the Syzygy test (`tests/tb_test.py`: win/draw/loss of random 3-5-men positions against python-chess reading the same files, the root move filter, search, and conversion of won endgames). Logs are in `logs/`.
 * The Windows x86-64-v3 build ran all of this. The repository's GitHub Actions workflow ([`verify-release.yml`](.github/workflows/verify-release.yml)) runs the published files on GitHub's machines (Linux x86-64 v3, v2 and generic, Linux ARM64, macOS Apple silicon, Windows): its runs on the published files are on the Actions page.
 * The macOS Intel build is run by the same workflow on GitHub's macOS Intel machine (`macos-15-intel`); I have no Mac myself.
-* For the many threads of 3.1: thread start / stop stress tests with 16, 64 and 128 threads, `tests/breakers.py` with 1, 8 and 64 threads, an AddressSanitizer + UBSan build run with up to 128 threads, matches of 8 threads against 1 (200 and 100 games), and the scaling measurements of the changelog (`logs/threads_3_1.txt`). All of it ran on one Windows laptop with 22 logical processors. For 3.2 the same suites ran on the 3.2 files (`logs/threads_3_2.txt`, `logs/repo_tests_3_2.txt`), for 4.0 on the 4.0 files (`logs/threads_4_0.txt`, `logs/repo_tests_4_0.txt`).
+* For the many threads of 3.1: thread start / stop stress tests with 16, 64 and 128 threads, `tests/breakers.py` with 1, 8 and 64 threads, an AddressSanitizer + UBSan build run with up to 128 threads, matches of 8 threads against 1 (200 and 100 games), and the scaling measurements of the changelog (`logs/threads_3_1.txt`). All of it ran on one Windows laptop with 22 logical processors. For 3.2 the same suites ran on the 3.2 files (`logs/threads_3_2.txt`, `logs/repo_tests_3_2.txt`), for 4.0 on the 4.0 files (`logs/threads_4_0.txt`, `logs/repo_tests_4_0.txt`), for 4.1 on the 4.1 files (`logs/threads_4_1.txt`, `logs/repo_tests_4_1.txt`).
 
 ## How the network was made
 
@@ -78,12 +78,12 @@ The held-out error (mean squared error of the win probability, 400,000 positions
 
 ## Versions
 
-4.0 (a faster search and two changes to the move ordering; +29.9 ± 4.5 Elo against 3.2), 3.2 (smoother time management; huge-page advice for the hash table on Linux), 3.1 (up to 128 threads and a hash of up to 1,048,576 MB; plays like 3.0 with one thread), 3.0 (a new network trained on about nine times more positions, Syzygy tablebases), 2.3 (bug fixes: an evaluation overflow in endgames; obsolete options with wrong defaults removed, which was 2.2), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
+4.1 (bug fixes: malformed FEN strings, small node limits and UCI_Elo; plays like 4.0 at full strength), 4.0 (a faster search and two changes to the move ordering; +29.9 ± 4.5 Elo against 3.2), 3.2 (smoother time management; huge-page advice for the hash table on Linux), 3.1 (up to 128 threads and a hash of up to 1,048,576 MB; plays like 3.0 with one thread), 3.0 (a new network trained on about nine times more positions, Syzygy tablebases), 2.3 (bug fixes: an evaluation overflow in endgames; obsolete options with wrong defaults removed, which was 2.2), 2.1 (default settings for chess-engine testers), 2.0 (the large network), 1.1 and 1.0 (two small networks and a hand-written evaluation): see [CHANGELOG.md](CHANGELOG.md). What the README said about 1.x is kept in [docs/KESTREL_1_x.md](docs/KESTREL_1_x.md).
 
 ## Layout
 
-* `src/kestrel_4_0.cpp` the whole engine (6.2 MB: the engine with 128 copies of the search, made by `scripts/make_threads.py` from `src/kestrel_4_0_base.cpp`, which is the same engine with 8 copies and the file to read); `src/kestrel_3_2.cpp` is 3.2 (from `src/kestrel_3_2_base.cpp`), `src/kestrel_3_1.cpp` is 3.1 (made from `src/kestrel_3_0.cpp`, which is 3.0); `src/kestrel_2_0.cpp` is 2.0 - 2.3; `src/kestrel_1_1.cpp` and its network headers: Kestrel 1.1; `src/claude_book.txt` the optional opening book (the file keeps its old name)
-* `scripts/` the generator of the 3.1, 3.2 and 4.0 sources (`make_threads.py`) and the Windows version-info file (`kestrel.rc`)
+* `src/kestrel_4_1.cpp` the whole engine (6.2 MB: the engine with 128 copies of the search, made by `scripts/make_threads.py` from `src/kestrel_4_1_base.cpp`, which is the same engine with 8 copies and the file to read); `src/kestrel_4_0.cpp` is 4.0 (from `src/kestrel_4_0_base.cpp`), `src/kestrel_3_2.cpp` is 3.2 (from `src/kestrel_3_2_base.cpp`), `src/kestrel_3_1.cpp` is 3.1 (made from `src/kestrel_3_0.cpp`, which is 3.0); `src/kestrel_2_0.cpp` is 2.0 - 2.3; `src/kestrel_1_1.cpp` and its network headers: Kestrel 1.1; `src/claude_book.txt` the optional opening book (the file keeps its old name)
+* `scripts/` the generator of the 3.1, 3.2, 4.0 and 4.1 sources (`make_threads.py`) and the Windows version-info file (`kestrel.rc`)
 * `docs/` build notes, option reference, Syzygy notes, an architecture guide, release notes of 1.x, the web page (`index.html`)
 * `logs/` result and test logs of the releases
 * `tests/` black-box test scripts for any Kestrel executable (see `tests/README.md`)
@@ -92,4 +92,4 @@ The tools that train the network and run the long test suites are not part of th
 
 ## Licence
 
-MIT, see `LICENSE`. The Syzygy probing code (Fathom) is MIT-licensed too; its notice is in `THIRD_PARTY_NOTICES.txt` and at the start of its block in `src/kestrel_4_0.cpp`.
+MIT, see `LICENSE`. The Syzygy probing code (Fathom) is MIT-licensed too; its notice is in `THIRD_PARTY_NOTICES.txt` and at the start of its block in `src/kestrel_4_1.cpp`.

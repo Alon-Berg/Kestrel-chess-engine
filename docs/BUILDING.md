@@ -71,6 +71,12 @@ Nothing else changes for 3.0: the AVX2 evaluation code is compiled only when the
 
 Tested for 3.0 (Windows x86-64-v3, logs in `logs/`): the 30-check verification with AddressSanitizer / UBSan, also with 4 threads, and the Syzygy test (`v3_0_verify_log.txt`, 30 of 30), the two audits (`audit_probe_3_0_output.txt`, 83 of 83; `audit_sem_3_0_output.txt`, 31 of 31), the options test (20 options, 0 differences) and, with the 3-4-5-men files, `tests/tb_test.py` (1,500 positions, 0 mismatches against python-chess; conversion 30 of 30). The Linux and macOS builds were compiled with Zig (clang) and checked for file format; the GitHub Actions workflow runs the published files and the source on GitHub's machines.
 
+## Kestrel 4.1
+
+`src/kestrel_4_1.cpp` is the whole engine with 128 copies of the search (6.2 MB, about 114,300 lines), generated from `src/kestrel_4_1_base.cpp` (the same engine with 8 copies, 13,617 lines: the file to read) by `scripts/make_threads.py`: `python scripts/make_threads.py 128 src/kestrel_4_1.cpp --id-name "Kestrel 4.1"` writes the file byte for byte. The network is the one of 3.0 - 4.0: download `kestrel_net_4_1.bin` (the same file as `kestrel_net_3_0.bin`) from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler. The compile commands are those of 4.0 below with `kestrel_4_1.cpp`; the depth-12 bench is 712,768 nodes on all three Windows builds, as in 4.0.
+
+Tested for 4.1 (Windows x86-64-v3, logs in `logs/`): `threads_4_1.txt`, `repo_tests_4_1.txt` (the test scripts of `tests/`), `v4_1_verify_log.txt` (the sanitizer verification), `audit_probe_4_1_output.txt` (83 of 83) and `audit_sem_4_1_output.txt` (31 of 31).
+
 ## Kestrel 4.0
 
 `src/kestrel_4_0.cpp` is the whole engine with 128 copies of the search (6.2 MB, about 114,200 lines). It is generated from `src/kestrel_4_0_base.cpp` (the same engine with 8 copies, 13,608 lines: the file to read) by `scripts/make_threads.py`: `python scripts/make_threads.py 128 src/kestrel_4_0.cpp --id-name "Kestrel 4.0"` writes the file byte for byte (the script checks that the copies are identical and prints the few places where its output differs from its input). The network is the one of 3.0 - 3.2: download `kestrel_net_4_0.bin` (the same file as `kestrel_net_3_0.bin`) from the release page and save it as `kestrel_net.bin` in the folder where you run the compiler.

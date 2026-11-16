@@ -1,5 +1,13 @@
 # Changelog
 
+## 4.1 (2026-11-16)
+
+A bug-fix release. With one thread and full strength Kestrel 4.1 plays exactly like 4.0: the same search, the same depth-12 bench (712,768 nodes), and 24 test positions searched to depth 14 and with `go nodes 30000` give identical nodes, scores, best moves and principal variations in the release builds of both; the speed is the same.
+**Malformed FEN strings:** `position fen ...` with a rank that does not add up to eight files, more or fewer than eight ranks, an unknown character or a halfmove clock of 2^31 or more used to shift by a negative or too large square number or to overflow an integer (undefined behaviour; these were the two known limits of 3.0 - 4.0, found by the AddressSanitizer + UBSan build). Such a position is now rejected (`info string illegal position ignored`, the previous position stays) and a huge clock is clamped. `tests/edge_test.py` now passes under the sanitizer build too.
+**Small node limits:** the node counter was compared with `go nodes N` and with the limit of `UCI_LimitStrength` / `UCI_Elo` only every 2048 nodes, so every limit below 2048 nodes was really 2048 nodes and all `UCI_Elo` values below about 2300 played alike. With a node limit below 8192 the counter is now tested at every node, so a limit of 100 nodes is 100 nodes and the `UCI_Elo` levels differ. From 2400 up the scale (`4000 * 2^((Elo - 2400) / 100)` nodes) is unchanged; below 2400 it now falls from 4000 nodes to 100 nodes at 1320 (4.0: halving every 100 Elo down to 2 nodes, which with exact limits would play the first generated move). It is a node scale, not a calibrated Elo. Limits of 8192 nodes and more, `go depth`, `go movetime` and the clock behave as in 4.0.
+**Source:** `src/kestrel_4_1_base.cpp` (13,617 lines, 8 copies of the search) is the file to read; `src/kestrel_4_1.cpp` (6.2 MB, 128 copies) is generated from it by `scripts/make_threads.py`.
+**Tests:** the 20 test scripts of `tests/`, the two audits, the sanitizer verification and the AddressSanitizer + UBSan thread suite pass on the 4.1 files; logs: `logs/threads_4_1.txt`, `logs/repo_tests_4_1.txt`, `logs/v4_1_verify_log.txt`, `logs/audit_probe_4_1_output.txt`, `logs/audit_sem_4_1_output.txt`.
+
 ## 4.0 (2026-11-13)
 
 A faster search and two changes to the move ordering. The network, the evaluation and the time management are those of 3.2. Against the packaged 3.2 (Windows x86-64-v3, one thread, Hash 64, no book, the same openings for both sides): **+31.9 ± 5.8 Elo at 3 s + 0.03 s per game (4,000 games) and +26.8 ± 7.1 at 5 s + 0.1 s (2,000 games), together +29.9 ± 4.5 Elo (6,000 games)**. Games lost on time in the two release matches: 3 s + 0.03 s: 4.0 3, 3.2 3; 5 s + 0.1 s: 4.0 0, 3.2 0.
