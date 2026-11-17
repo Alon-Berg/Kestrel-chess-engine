@@ -75,7 +75,8 @@ check("ponder: stop ends a pondering search with a bestmove", bm2 is not None, s
 e.close()
 
 # ---------------- Clear Hash, hashfull
-e = Eng(); m = e.mark(); e.send("position startpos"); e.send("go depth 12"); e.wait("bestmove", 30, m)
+e = Eng(); e.send("setoption name Hash value 16")      # a small table: hashfull counts the filled slots among the FIRST 1,000 slots of the table; the 256 MB default table has 16 million slots and the depth-12 search from the start position needs only about 44,000 nodes in 4.2 (about 65,000 in 4.1), so about one of those 1,000 slots is filled and 0 is a likely, correct reading
+m = e.mark(); e.send("position startpos"); e.send("go depth 12"); e.wait("bestmove", 30, m)
 hf = [int(g.group(1)) for l in e.new(m) for g in [re.search(r"hashfull (\d+)", l)] if g]
 check("hashfull is reported", len(hf) > 0 and max(hf) > 0, "values %s" % hf[-3:])
 m = e.mark(); e.send("setoption name Clear Hash"); e.send("isready"); r = e.wait("readyok", 5, m)

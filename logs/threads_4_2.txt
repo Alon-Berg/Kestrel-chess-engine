@@ -1,0 +1,48 @@
+Kestrel 4.2: thread tests on one Windows laptop (22 logical processors: 6 performance cores with two threads each, 8 efficiency cores, 2 low-power cores; 31 GB).
+The thread code of 4.2 is that of 3.1, 3.2, 4.0 and 4.1: the scaling measurements, the hash tests and the matches of more threads against one thread are in threads_3_1.txt. Below: the checks of the 4.2 release exe.
+
+===== (release) single-thread identity of the packaged exe with the 8-copy build of the same source (24 positions, depth 14 and go nodes 30000) =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe identity_check.py my_engine\dev\b41\k42base.exe kestrel_builds_work_42\windows_x86-64-v3\kestrel.exe   (cwd my_engine\dev\b31mt)
+reference k42base.exe: 24 positions, total nodes 5211801
+kestrel.exe: uci output differs in 3 line(s) (lengths 25 / 25): ['id name Kestrel 4.2', 'option name Hash type spin default 256 min 1 max 1048576', 'option name Threads type spin default 1 min 1 max 128']
+   depth-14 searches: ALL 24 IDENTICAL (nodes, score, best move, PV) (total nodes 5211801)
+   go nodes 30000 searches: ALL 24 IDENTICAL
+
+===== (release) the same against the packaged 4.1 exe =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe identity_check.py kestrel_builds_work_41\windows_x86-64-v3\kestrel.exe kestrel_builds_work_42\windows_x86-64-v3\kestrel.exe   (cwd my_engine\dev\b31mt)
+reference kestrel.exe: 24 positions, total nodes 5037573
+kestrel.exe: uci output differs in 1 line(s) (lengths 25 / 25): ['id name Kestrel 4.2']
+   depth-14 searches: DIFFERENT in positions [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22] (total nodes 5211801)
+   pos 0 ref ('14', '258636', 'score cp -124', 'bestmove e2a6') | new ('14', '278463', 'score cp -84', 'bestmove e2a6')
+   pos 1 ref ('14', '227720', 'score cp 18', 'bestmove f5d3') | new ('14', '124516', 'score cp 10', 'bestmove f5d3')
+   pos 2 ref ('14', '252657', 'score cp 240', 'bestmove d4c6') | new ('14', '278770', 'score cp 306', 'bestmove d4c6')
+   pos 3 ref ('14', '84343', 'score cp -73', 'bestmove f2f3') | new ('14', '144812', 'score cp -71', 'bestmove f2f3')
+   pos 4 ref ('14', '253640', 'score cp 250', 'bestmove f4g3') | new ('14', '447898', 'score cp 267', 'bestmove f4c7')
+   go nodes 30000 searches: DIFFERENT in positions [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22]
+
+===== (release) short searches with 128 threads must still search (tests\depth1_test.py) =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe kestrel_repo\tests\depth1_test.py kestrel_builds_work_42\windows_x86-64-v3\kestrel.exe 128 60 60   (cwd my_engine)
+Threads 128, go movetime 60, 60 searches: 0 ended without a result, 0 stalemating moves, 0 without a bestmove
+depth1_test: PASS
+
+===== (release) AddressSanitizer + UBSan run of the release source =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe asan_suite.py k42_final_asan.exe k42final   (cwd my_engine\dev\b31mt)
+PASS ASan/UBSan bench 12 completes   bench: nodes 588138 time 2459 ms nps 239177
+PASS many-thread stress, Threads 2   (7 s) MT-STRESS k42_final_asan.exe: Threads 2, 30 iterations (seed 2): PASS | stop->bestmove latency max 287 ms mean 72 ms (4), movetime overshoot max 37 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.07 s), EOF durin
+PASS many-thread stress, Threads 8   (7 s) MT-STRESS k42_final_asan.exe: Threads 8, 30 iterations (seed 8): PASS | stop->bestmove latency max 312 ms mean 59 ms (6), movetime overshoot max 40 ms (10) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.07 s), EOF duri
+PASS many-thread stress, Threads 16   (7 s) MT-STRESS k42_final_asan.exe: Threads 16, 30 iterations (seed 16): PASS | stop->bestmove latency max 3 ms mean 3 ms (3), movetime overshoot max 275 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.07 s), EOF durin
+PASS many-thread stress, Threads 32   (7 s) MT-STRESS k42_final_asan.exe: Threads 32, 30 iterations (seed 32): PASS | stop->bestmove latency max 5 ms mean 4 ms (5), movetime overshoot max 236 ms (7) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.08 s), EOF durin
+PASS many-thread stress, Threads 64   (8 s) MT-STRESS k42_final_asan.exe: Threads 64, 30 iterations (seed 64): PASS | stop->bestmove latency max 12 ms mean 7 ms (4), movetime overshoot max 254 ms (11) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.09 s), EOF dur
+PASS many-thread stress, Threads 128   (9 s) MT-STRESS k42_final_asan.exe: Threads 128, 30 iterations (seed 128): PASS | stop->bestmove latency max 59 ms mean 20 ms (8), movetime overshoot max 68 ms (6) | OS threads after search max 2 (idle 2) | exit codes: quit 0, quit during infinite 0 (0.10 s), EOF du
+PASS hash 1024 MB (parallel zeroing) + search + ucinewgame, 16 threads   (5 s) search 2000 ms, 16 threads: wall 1.97 s, last info: info depth 19 score cp 26 nodes 4558897 nps 3092873 hashfull 29 time 1474 pv e2e4 e7e6 b1c3 d7d5 d2d4 g8f6 c1g5 f8e7 e4e5 f6d7 g5e | bestmove bestmove e2e4 | ucinewgame                   -> readyok after 0.05 s | setoption name Clear Hash    -> readyok after 0.04 s | exit code 0
+PASS UCI fuzzer (16 threads by default)   (210 s) sequences 300 | failures 0
+PASS PV legality / mate consistency (16 threads by default)   (6 s) positions 80 | info lines checked 689 | mate lines 138 | illegal PV/bestmove: 0 | mate PV not ending in mate: 0
+PASS stress_stop.py 400 iterations, Threads 16   (4 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS stress_stop.py 400 iterations, Threads 64   (4 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS stress_stop.py 400 iterations, Threads 128   (4 s) iterations 400 | go commands 153 | bestmoves 153 | OK
+PASS breakers.py --quick (perft, mate, forced, deep, fuzz), --threads 8   (12 s) fuzz      40 checks, 0 problems,    3 s | breakers: PASS  (175 checks, 12 s, quick)
+PASS breakers.py --quick (perft, mate, forced, deep, fuzz), --threads 64   (18 s) fuzz      40 checks, 0 problems,    5 s | breakers: PASS  (175 checks, 17 s, quick)
+PASS race_test.py 20 runs (go infinite + immediate stop; Threads 1)   (16 s) runs 20 hung (no bestmove within 5 s): 0 | slowest start 1.5 s
+PASS edge_test.py   (344 s) cases 303 | problems 0 | 344s
+
+k42final: 17 steps, 0 failed, 11 min

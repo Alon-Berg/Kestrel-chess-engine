@@ -1,0 +1,38 @@
+Kestrel 4.2, the packaged Windows x86-64-v3 exe, tests\ of the repository (dev\b31mt\repo_tests.py; Threads 1 unless a script sets more; every script's full output was kept)
+
+PASS audit_sem              (  12 s) PASS  castling position: legal bestmove  | bestmove h1h8 | 31 checks, 0 failed
+PASS audit_probe            ( 172 s) PASS  (info) upper-case commands are ignored like in Stockfish | 83 cases, 0 failed
+PASS edge_test              ( 203 s) cases 303 | problems 0 | 202s     [second pass, idle laptop]
+PASS race_test_x60          ( 157 s) runs 60 hung (no bestmove within 5 s): 0 | slowest start 6.6 s
+PASS infinite_test          (   6 s) bestmove printed BEFORE stop: False | after stop: ['bestmove d1d8']
+PASS options_test           (  20 s) options_test: 20 options, 5 positions, 0 differences
+PASS test_uci_features      (  10 s) PASS Threads 4: search completes with a legal move   nps 1011063 | 13 checks, 0 failed     [second pass, idle laptop]
+PASS clock_limit_test       (   7 s) PASS clock alone: unchanged (about 3000/28 ms)   0.06s, depth 8 | clock_limit_test: 9 checks, 0 failed     [second pass, idle laptop]
+PASS longlist_test          (   4 s) kestrel_builds_work_42\windows_x86-64-v3\kestrel.exe | alive: True | exit: None | bestmove: ['bestmove d2d4']
+PASS chess960_test          ( 416 s) PASS standard chess (UCI_Chess960 off): legal moves equal python-chess in 2400 positions; castling e1g1 e1c1 e8g8 e8c8 all seen (41 castling moves)   ['e1c1', 'e1g1', 'e8c8', 'e8g8'] | chess960_test: 5 checks, 0 failed
+PASS interop_test           (  25 s) PASS new-game handling (ucinewgame between games) | interop_test: 18 checks, 0 failed
+PASS uci_fuzz               ( 977 s) sequences 300 | failures 0
+PASS stress_stop_t16        (  41 s) iterations 2000 | go commands 776 | bestmoves 776 | OK
+PASS stress_stop_t64        (  54 s) iterations 2000 | go commands 755 | bestmoves 755 | OK
+PASS stress_stop_t128       (  11 s) iterations 2000 | go commands 794 | bestmoves 794 | OK     [second pass, idle laptop]
+PASS breakers_t1            ( 492 s) eval     214 checks, 0 problems,   81 s | breakers: PASS  (807 checks, 486 s)
+PASS breakers_t8            ( 114 s) eval     214 checks, 0 problems,   46 s | breakers: PASS  (807 checks, 114 s)
+PASS breakers_t64           ( 120 s) eval     214 checks, 0 problems,   60 s | breakers: PASS  (807 checks, 120 s)
+PASS breakers_t16_syzygy    ( 135 s) tb       400 checks, 0 problems,   16 s | breakers: PASS  (1207 checks, 135 s)
+PASS tb_test_t16            (  33 s) 4. conversion: 15 of 15 won endgames converted to a mate | tb_test: PASS
+repo_tests 42pkg: done (20 tests)
+
+NOTE ON THE TWO PASSES.  The first pass of all 20 scripts (13:58 to 15:02 on 2026-11-17) ran while other programs were building and testing on the same laptop: 16 scripts passed, 4 failed.
+The 4 scripts that failed were run again, on the idle laptop (edge_test, test_uci_features, clock_limit_test, stress_stop_t128); all of them passed; their lines above are from that second pass.
+  Why the four failed in the first pass:
+  - edge_test: one case got no readyok at the start and two cases (setoption Hash value 99999999999 + go) did not exit on quit within the script's wall-clock limits. The same pass measured engine starts of up to 6.6 s (race_test_x60; 4.2 needs 0.35 s on an idle laptop).
+  - clock_limit_test: 'go movetime 200 depth 40' answered after 0.91 s with depth 3 and a depth-1 answer took 1.62 s (0.04 s on an idle laptop): the process was not getting the CPU.
+  - stress_stop_t128: 793 bestmoves for 794 go commands; the script counts after a fixed 1.5 s wait for the last bestmove, which is too short with 128 threads on a loaded laptop.
+  - test_uci_features: the check 'hashfull is reported' was a flaw of the test, not of the engine: hashfull counts the filled slots among the first 1,000 slots of the table; the default table has 16 million slots, the depth-12 search from the start position needs
+    about 44,000 nodes in 4.2 (about 65,000 in 4.1), so about one of the 1,000 slots is filled and 0 is a likely, correct reading. tests/test_uci_features.py now sets Hash 16 for that check (the fixed script is the one that passed in the second pass).
+  The four lines of the first pass:
+    FAIL edge_test              ( 893 s) PROBLEM [setoption Hash value 99999999999 + go movetime 100 (kiwipete)]: did not exit on quit | cases 303 | problems 3 | 887s
+    FAIL test_uci_features      (  33 s) PASS Threads 4: search completes with a legal move   nps 1517415 | 13 checks, 1 failed
+    FAIL clock_limit_test       (  43 s) PASS clock alone: unchanged (about 3000/28 ms)   0.08s, depth 7 | clock_limit_test: 9 checks, 1 failed
+    FAIL stress_stop_t128       (  47 s) iterations 2000 | go commands 794 | bestmoves 793 | MISMATCH (a go produced no or several bestmoves)
+  The complete output of each script of the first pass is not part of this log; the second pass's outputs are the ones kept.
