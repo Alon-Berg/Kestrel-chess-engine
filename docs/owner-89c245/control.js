@@ -41,7 +41,7 @@
     return (await Promise.all(ports.map(ping))).find(Boolean) || 0;
   }
   const whyNot = (e) => (e.status === 401 ? 'The Arena refused this token. Copy it again in the Arena (Website control, Copy): it changes when you press Reset pairing.'
-    : e.status === 429 ? 'Too many wrong tokens: the Arena is locked for ' + (e.retry || 60) + ' seconds.'
+    : e.status === 429 && e.retry ? 'Too many wrong tokens: the Arena is locked for ' + (e.retry || 60) + ' seconds.'
     : e.status === 403 ? 'The Arena refused this page (wrong address or origin). Use the control page you were given, on the PC that runs the Arena.' : e.message);
 
   async function connect(silent) {
@@ -179,7 +179,7 @@
           h('li', {}, 'Press Copy next to the pairing token, paste it above and press Connect. The page keeps it in this browser, so next time you only switch the Arena on and press Connect.'),
           h('li', {}, 'Choose the engines, format and time control below and press Start. The tournament runs in the Arena; here you see it move by move. Pause, Resume and Stop work from here or in the Arena.')),
         h('p', {}, h('b', {}, 'Your browser may ask once '), 'whether this site may connect to devices on your local network (Chrome and Edge: "Local network access"). Choose Allow; the lock icon in the address bar > Site settings changes it later. Firefox allows it without asking. Safari does not allow a secure page to reach http://127.0.0.1: use Chrome, Edge or Firefox.'),
-        h('p', {}, 'This page can only reach the Arena on the PC where the browser runs, and only while the switch is on. It cannot add or change engines, run files or read files. Anyone else who opens this page sees a form that does nothing. The token is a long random secret: do not share it, and press "Reset pairing" in the Arena if it leaks. (Every page under alon-berg.github.io shares this browser storage, so keep the switch on only while you use the page.)')));
+        h('p', {}, 'This page can only reach the Arena on the PC where the browser runs, and only while the switch is on. It cannot add or change engines, run other programs or read files; the one other thing it can do is publish the current tournament to your public Live page when you press Publish. Anyone else who opens this page sees a form that does nothing. The token is a long random secret: do not share it, and press "Reset pairing" in the Arena if it leaks. (Every page under alon-berg.github.io shares this browser storage, so keep the switch on only while you use the page.)')));
   }
   function renderEngines() {
     if (!U.engBox) return;
@@ -224,23 +224,42 @@
     renderEngines();
     renderEstimate();
   }
+  async function publish() {
+    if (!confirm('Publish this tournament to your public Live page now? Everybody who opens that page will see its standings and games.')) return;
+    try { await api('POST', '/publish', {}); C.status = await api('GET', '/status'); setMsg('Publishing to the Live page...', ''); } catch (e) { setMsg('Not published: ' + whyNot(e), 'bad'); }
+    renderRun();
+  }
   function buildRun() {                             // built once and updated in place: a button that is rebuilt while it is being pressed would swallow the click
     const R = (U.runEls = { name: h('b'), chip: h('span', { class: 'chip' }), info: h('span', { class: 'dim' }), none: h('div', { class: 'dim' }, 'No tournament is loaded in the Arena.'),
-      pause: h('button', { class: 'btn', onclick: () => act(R.id, 'pause') }, 'Pause'), resume: h('button', { class: 'btn', onclick: () => act(R.id, 'resume') }, 'Resume'), stop: h('button', { class: 'btn bad', onclick: () => act(R.id, 'stop') }, 'Stop') });
+      pause: h('button', { class: 'btn', onclick: () => act(R.id, 'pause') }, 'Pause'), resume: h('button', { class: 'btn', onclick: () => act(R.id, 'resume') }, 'Resume'), stop: h('button', { class: 'btn bad', onclick: () => act(R.id, 'stop') }, 'Stop'),
+      pub: h('button', { class: 'btn', onclick: () => publish() }, 'Publish to the Live page'), pubInfo: h('span', { class: 'dim small' }), pubLink: h('a', { href: '#', target: '_blank', rel: 'noopener' }) });
     R.row = h('div', { class: 'row wrap' }, R.name, R.chip, R.info, h('span', { class: 'sp' }), R.pause, R.resume, R.stop);
-    U.run.replaceChildren(h('h2', {}, '3. Running tournament'), R.row, R.none);
+    R.pubRow = h('div', { class: 'row wrap' }, R.pub, R.pubInfo, R.pubLink);
+    U.run.replaceChildren(h('h2', {}, '3. Running tournament'), R.row, R.pubRow, R.none);
   }
   function renderRun() {
     if (!U.run) return;
     if (!U.runEls) buildRun();
     const R = U.runEls, t = C.status && C.status.tournament, on = t && ['running', 'paused', 'stopping'].includes(t.status);
-    R.row.classList.toggle('hidden', !t); R.none.classList.toggle('hidden', !!t);
+    R.row.classList.toggle('hidden', !t); R.pubRow.classList.toggle('hidden', !t); R.none.classList.toggle('hidden', !!t);
     if (t) {
       R.id = t.id;
       R.name.textContent = t.name || t.id;
       R.chip.textContent = t.status; R.chip.className = 'chip ' + (t.status === 'running' ? 'good' : t.status === 'paused' ? 'warn' : t.status === 'finished' ? 'acc' : t.status === 'error' ? 'bad' : '');
       R.info.textContent = t.done + ' / ' + (t.total || '?') + ' games - ' + t.tc_label + ' - ' + (t.concurrency || 1) + ' parallel';
       R.pause.disabled = !C.ok || t.status !== 'running'; R.resume.disabled = !C.ok || t.status !== 'paused'; R.stop.disabled = !C.ok || !on;
+      const p = (C.status && C.status.publish) || {};
+      R.pub.disabled = !C.ok || p.configured === false || p.state === 'running' || p.wait > 0;
+      R.pub.title = p.configured === false ? 'Not set up in this Arena: run tools\\enable_owner_control.py --update on the PC' : p.wait > 0 ? 'Possible again in ' + p.wait + ' s' : 'Put this tournament on your public Live page';
+      const sig = JSON.stringify(Object.assign({}, p, { wait: 0 }));
+      if (R.pubSig !== sig) {                      // (the line below the buttons only changes when the publication does)
+        R.pubSig = sig;
+        if (p.state !== 'running' && U.msg && /^Publishing/.test(U.msg.textContent)) setMsg('', '');
+        R.pubInfo.textContent = p.configured === false ? 'Publishing to the Live page is not set up in this Arena.' : p.state === 'running' ? 'Publishing...' : p.state === 'error' ? 'Not published (' + p.at + '): ' + p.message
+          : p.state === 'done' ? p.message + ' (' + p.at + (p.commit ? ', commit ' + p.commit : '') + ') ' : '';
+        R.pubInfo.className = 'dim small' + (p.state === 'error' ? ' bad' : '');
+        R.pubLink.textContent = p.state === 'done' && p.page ? p.page : ''; R.pubLink.href = p.state === 'done' && p.page ? p.page : '#';
+      }
     }
     renderEstimate();
   }
