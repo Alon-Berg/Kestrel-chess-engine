@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Kestrel Chess Engine</title>
 <meta name="description" content="Kestrel is a UCI chess engine in one C++17 file. Version 4.2 evaluates every position with one large neural network, reads Syzygy tablebases and searches with up to 128 threads.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Kestrel chess engine">
+<meta property="og:title" content="Kestrel Chess Engine">
+<meta property="og:description" content="A UCI chess engine in one C++17 file with a neural-network evaluation and Syzygy tablebases. Download it for Windows, Linux or macOS, play it in your browser and watch engine tournaments.">
+<meta property="og:url" content="https://alon-berg.github.io/Kestrel-chess-engine/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Kestrel Chess Engine">
+<meta name="twitter:description" content="A UCI chess engine in one C++17 file with a neural-network evaluation and Syzygy tablebases. Download it for Windows, Linux or macOS, play it in your browser and watch engine tournaments.">
 <style>
 /* Layout: an instrument panel. A left-aligned wordmark, a real UCI session as the opening, measurements drawn to scale. Amber marks what was measured. */
 :root{
@@ -129,6 +137,37 @@ info depth 13 score cp 19  nodes 66534   time 44   pv e2e4 c7c5 g1f3 e7e6 b1c3 b
     <div><dt>2.6 billion</dt><dd>training positions (238 M from Lichess, 2.36 B along its best lines, 6.6 M from Kestrel's own games)</dd></div>
     <div><dt>128</dt><dd>search threads at most</dd></div>
   </dl>
+</section>
+
+<section id="everything">
+  <h2>Everything in one place</h2>
+  <p class="intro">The engine, a page to play it in your browser, a program that runs engine tournaments, and a page to watch tournaments.</p>
+  <div class="cards" style="grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr))">
+    <article class="card">
+      <span class="tag">Engine</span>
+      <h3>Kestrel 4.2</h3>
+      <p>The UCI engine on this page: one C++17 file, a 39-million-parameter network, Syzygy tablebases and up to 128 search threads. Builds for Windows, Linux and macOS, MIT licence.</p>
+      <a class="btn main" href="https://github.com/Alon-Berg/Kestrel-chess-engine/releases/tag/v4.2">Download 4.2</a> <a class="btn" href="https://github.com/Alon-Berg/Kestrel-chess-engine">Source on GitHub</a>
+    </article>
+    <article class="card">
+      <span class="tag">Play</span>
+      <h3>Play Kestrel in your browser</h3>
+      <p>A game against Kestrel in this browser tab: nothing to download or install. The web page runs Kestrel 3.2 as WebAssembly.</p>
+      <a class="btn main" href="play/">Play now</a>
+    </article>
+    <article class="card">
+      <span class="tag">Tournaments</span>
+      <h3>Kestrel Arena</h3>
+      <p>A Windows program that runs engine tournaments with real games between UCI engines: round robin, gauntlet, Swiss, knockout and elimination, with standings, Elo estimates, crosstable and bracket. It also has a play board and an analysis board for Kestrel. Source on GitHub (run it with Python 3.12); a packaged Windows download is not published yet.</p>
+      <a class="btn" href="https://github.com/Alon-Berg/kestrel-arena">Source on GitHub</a>
+    </article>
+    <article class="card">
+      <span class="tag">Watch</span>
+      <h3>Live tournaments</h3>
+      <p>Watch a tournament played in the Arena: board, evaluation, standings, crosstable, bracket and game replay. View-only: the owner publishes a tournament here and the page updates in steps, not move by move.</p>
+      <a class="btn main" href="live/">Open the Live page</a>
+    </article>
+  </div>
 </section>
 
 <section id="versions">
