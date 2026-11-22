@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Kestrel</title>
+  <rect width="512" height="512" fill="#1e1e1e"/>
+  <path d="M 128 0 h128 v128 h-128 Z M 384 0 h128 v128 h-128 Z M 0 128 h128 v128 h-128 Z M 256 128 h128 v128 h-128 Z M 128 256 h128 v128 h-128 Z M 384 256 h128 v128 h-128 Z M 0 384 h128 v128 h-128 Z M 256 384 h128 v128 h-128 Z" fill="#484848"/>
+  <path d="M 128 128 L 195 128 L 195 213.01 L 284 128 L 380 128 L 246 256 L 384 384 L 288 384 L 195 297.74 L 195 384 L 128 384 Z" fill="#ffffff"/>
+</svg>

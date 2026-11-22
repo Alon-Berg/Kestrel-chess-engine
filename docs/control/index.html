@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:*; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<title>Kestrel Control - start tournaments</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="live.css">
+<link rel="stylesheet" href="control.css">
+</head>
+<body>
+<header class="ctop">
+  <a class="brand" href="../"><img src="assets/logo.svg" width="22" height="22" alt=""><b>Kestrel Arena</b><span class="dim">Control</span></a>
+  <span class="sp"></span>
+  <span id="cstate" class="chip"></span>
+</header>
+<main id="ctrl"><noscript><p class="card bad">This page needs JavaScript: it talks to the Kestrel Arena on your PC.</p></noscript></main>
+<div id="live"></div>
+<script src="local.js"></script>
+<script src="js/live_util.js"></script>
+<script src="js/board.js"></script>
+<script src="js/elo.js"></script>
+<script src="js/live.js"></script>
+<script src="control.js"></script>
+</body>
+</html>
