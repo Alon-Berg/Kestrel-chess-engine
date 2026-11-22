@@ -42,7 +42,7 @@
   }
   const whyNot = (e) => (e.status === 401 ? 'The Arena refused this token. Copy it again in the Arena (Website control, Copy): it changes when you press Reset pairing.'
     : e.status === 429 ? 'Too many wrong tokens: the Arena is locked for ' + (e.retry || 60) + ' seconds.'
-    : e.status === 403 ? 'The Arena refused this page (wrong address or origin). Use the page at https://alon-berg.github.io/Kestrel-chess-engine/control/ on the PC that runs the Arena.' : e.message);
+    : e.status === 403 ? 'The Arena refused this page (wrong address or origin). Use the control page you were given, on the PC that runs the Arena.' : e.message);
 
   async function connect(silent) {
     if (!C.token) { setMsg('Paste the pairing token from the Arena first.', 'warn'); return; }
@@ -174,7 +174,8 @@
       h('button', { class: 'btn pri', onclick: () => { persist(); connect(); } }, 'Connect'),
       h('button', { class: 'btn', title: 'Forget the token in this browser', onclick: () => { C.token = ''; U.token.value = ''; persist(); setConnected(false); setMsg('The token was removed from this browser.', ''); } }, 'Forget token')), U.msg,
       h('details', { class: 'help', open: !C.token }, h('summary', {}, 'How to turn this on (once per Arena start)'),
-        h('ol', {}, h('li', {}, 'Start the Kestrel Arena on this PC. In the Tournament tab press "Live view", then "Website control" and tick "Let my website control this Arena". It is always off when the Arena starts.'),
+        h('ol', {}, h('li', {}, 'Only the owner\'s own Arena can be controlled from here: it needs the owner key file in its data folder, made once on that PC (tools\\enable_owner_control.py). Other copies of the Arena have no such file and are not reachable.'),
+          h('li', {}, 'Start the Kestrel Arena on this PC. In the Tournament tab press "Live view", then "Website control" and tick "Let my website control this Arena". It is always off when the Arena starts.'),
           h('li', {}, 'Press Copy next to the pairing token, paste it above and press Connect. The page keeps it in this browser, so next time you only switch the Arena on and press Connect.'),
           h('li', {}, 'Choose the engines, format and time control below and press Start. The tournament runs in the Arena; here you see it move by move. Pause, Resume and Stop work from here or in the Arena.')),
         h('p', {}, h('b', {}, 'Your browser may ask once '), 'whether this site may connect to devices on your local network (Chrome and Edge: "Local network access"). Choose Allow; the lock icon in the address bar > Site settings changes it later. Firefox allows it without asking. Safari does not allow a secure page to reach http://127.0.0.1: use Chrome, Edge or Firefox.'),

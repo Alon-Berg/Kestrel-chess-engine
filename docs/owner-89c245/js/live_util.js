@@ -30,12 +30,6 @@
   A.svg = (tag, props, ...kids) => build(document.createElementNS(SVGNS, tag), props, kids);
   A.clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
   A.token = ((typeof document !== 'undefined' && document.querySelector('meta[name=arena-token]')) || {}).content || '';
-  // fetch() for the website's control page, which talks to the Arena on this PC (127.0.0.1): says so to browsers that ask for the target of such a request (Chrome / Edge: Local Network Access)
-  let lanOk = true;
-  A.lfetch = (url, init) => (lanOk ? fetch(url, Object.assign({ targetAddressSpace: 'loopback' }, init)).catch((e) => {
-    if (e instanceof TypeError && /address ?space|enum/i.test(String(e.message))) { lanOk = false; return fetch(url, init); }          // (a browser that knows the option under other values)
-    throw e;
-  }) : fetch(url, init));
 
   // ---- formatting --------------------------------------------------------------------------------------------------------
   const F = (A.fmt = {});

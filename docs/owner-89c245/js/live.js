@@ -47,7 +47,7 @@
       game: (gid) => (S.recsRaw && S.recsRaw[gid] ? Promise.resolve(S.recsRaw[gid]) : fetch('/live/api/game/' + gid).then((r) => (r.ok ? r.json() : null)).catch(() => null)),     // (a followed folder keeps only the latest games in the snapshot)
     };
   }
-  function localSource(cfg) {                        // the owner's website: the Arena on this PC, read through its control server (arena/control.py) with the pairing token; cfg = {base, token}
+  function localSource(cfg) {                        // the Arena on this PC, read through its local control server with the pairing token; cfg = {base, token}
     let ctl = null, stopped = false, fast = false;
     const lf = (path, extra) => A.lfetch(cfg.base + path, Object.assign({ headers: { Authorization: 'Bearer ' + cfg.token }, cache: 'no-store' }, extra));
     return {
@@ -85,7 +85,7 @@
       stop() { stopped = true; if (ctl) ctl.abort(); },
     };
   }
-  window.LivePage = {                                // used by the website's control page (it connects when the owner has pasted the token)
+  window.LivePage = {                                // used by the control page (it connects when the owner has pasted the token)
     connect(cfg) { window.LivePage.disconnect(); S.src = localSource(cfg); S.src.args = [onMsg, (ok) => { S.conn = ok; dirty('head'); }]; S.src.start(...S.src.args); dirty('head'); },
     disconnect() { if (S.src && S.src.stop) S.src.stop(); S.src = null; S.conn = false; onMsg({ t: 'state', tournament: null }); },
   };
@@ -232,12 +232,11 @@
     U.tname = h('b', { class: 'tname' }), U.tsub = h('span', { class: 'dim tsub' }), U.status = h('span', { class: 'chip' }), U.conn = h('span', { class: 'chip' });
     U.prog = h('div', { class: 'prog' }, h('i')), U.progT = h('span', { class: 'mono dim' }), U.elapsed = h('span', { class: 'mono dim' });
     U.share = h('div', { class: 'share hidden' });
-    U.web = h('div', { class: 'share hidden' });
     U.ctl = h('div', { class: 'ctl' });
     root.append(
       h('header', { class: 'top' }, h((window.LIVE_DEFAULT || {}).home ? 'a' : 'div', { class: 'brand', href: (window.LIVE_DEFAULT || {}).home || null }, h('img', { src: 'assets/logo.svg', width: 22, height: 22, alt: '' }), h('b', {}, 'Kestrel Arena'), h('span', { class: 'dim' }, 'Live')),
         h('div', { class: 'ttl' }, U.tname, U.tsub), U.status, h('div', { class: 'pg' }, U.prog, U.progT, U.elapsed), h('span', { class: 'sp' }), U.conn, U.ctl),
-      U.share, U.web,
+      U.share,
       h('div', { class: 'grid' },
         h('section', { class: 'bcol' }, U.pTop, h('div', { class: 'bw' }, U.evbar, U.board.el), U.pBot, U.msg, U.nav),
         h('section', { class: 'icol' }, h('div', { class: 'panels' }, U.engBox), h('div', { class: 'below' }, U.moves, U.graph)),
@@ -250,7 +249,7 @@
       e.preventDefault();
     });
     if (A.token && !window.__BROADCAST__) {               // only the page served to this PC by the Arena has the controls; the shared page and an exported broadcast are read-only
-      U.ctl.append(h('button', { class: 'btn', onclick: toggleWeb, title: 'Let my website start and stop tournaments here' }, 'Website control'), h('button', { class: 'btn', onclick: toggleShare }, 'Share on the network'), h('a', { class: 'btn', href: '/api/live/export?t=' + encodeURIComponent(A.token), download: '', title: 'One html file with every game, the standings and the graphs' }, 'Export broadcast'));
+      U.ctl.append(h('button', { class: 'btn', onclick: toggleShare }, 'Share on the network'), h('a', { class: 'btn', href: '/api/live/export?t=' + encodeURIComponent(A.token), download: '', title: 'One html file with every game, the standings and the graphs' }, 'Export broadcast'));
     }
   }
   const gotoPly = (p) => { const g = S.sel && viewOf(S.sel.gid); if (!g) return; const n = g.uci.length; p = Math.max(0, Math.min(p, n)); S.ply = p === n ? null : p; dirty('main'); };
@@ -587,33 +586,6 @@
     const load = async () => { try { drawShare(await api('GET', '/api/live/share')); } catch (e) { drawShare(null, e.message); } };
     await load();
     clearInterval(U.shareTimer); U.shareTimer = setInterval(() => { if (!U.share.classList.contains('hidden') && !U.share.contains(document.activeElement)) load(); }, 5000);
-  }
-
-  // ====================================================================================================== website control (arena/control.py): the switch, the pairing token, what the website did
-  const SITE_CONTROL = 'https://alon-berg.github.io/Kestrel-chess-engine/control/';
-  function drawWeb(s, err) {
-    A.clear(U.web);
-    const on = !!(s && s.on), tok = (s && s.token) || '';
-    const flip = async (body) => { try { drawWeb(await api('POST', '/api/control', body)); } catch (x) { drawWeb(s, x.message); } };
-    U.web.append(...[h('label', { class: 'chk' }, h('input', { type: 'checkbox', checked: on, onchange: (e) => flip({ on: e.target.checked }) }), ' Let my website control this Arena'),
-      h('span', { class: 'dim' }, on ? ' - ON: ' + ((s.origins || []).join(', ')) + ' can start, pause and stop tournaments here, with the pairing token below. It cannot add or change engines, run files or read files. Switch it off when you are done.'
-        : ' - off: nothing listens and the website cannot reach this Arena. It is always off when the Arena starts.'),
-      on ? h('div', { class: 'urls' }, h('div', {}, 'Listening on 127.0.0.1:' + s.port + (s.locked ? ' - LOCKED for a minute (too many wrong tokens)' : '') + ' - ' + s.viewers + ' live viewer(s)'),
-        h('div', {}, 'Your control page: ', h('a', { href: SITE_CONTROL, target: '_blank', rel: 'noopener' }, SITE_CONTROL))) : null,
-      tok ? h('div', { class: 'urls' }, h('div', {}, 'Pairing token: ', h('code', { class: 'mono' }, U.tokShown ? tok : '•'.repeat(32)), ' ',
-        h('button', { class: 'btn sm', onclick: () => { U.tokShown = !U.tokShown; drawWeb(s); } }, U.tokShown ? 'Hide' : 'Show'), ' ',
-        h('button', { class: 'btn sm', onclick: () => { if (navigator.clipboard) navigator.clipboard.writeText(tok).catch(() => {}); } }, 'Copy'), ' ',
-        h('button', { class: 'btn sm', onclick: () => { if (confirm('Reset the pairing? The website must be given the new token.')) flip({ reset: true }); } }, 'Reset pairing')),
-        h('div', { class: 'dim' }, 'Paste it once into the control page. Anybody who has it AND reaches this PC while the switch is on can start tournaments here: do not share it.')) : null,
-      s && s.events && s.events.length ? h('div', { class: 'urls dim' }, s.events.slice(0, 8).map((e) => h('div', {}, e.t + '  ' + e.msg))) : null,
-      err ? h('div', { class: 'bad' }, err) : null].filter(Boolean));
-  }
-  async function toggleWeb() {
-    U.web.classList.toggle('hidden');
-    if (U.web.classList.contains('hidden')) { clearInterval(U.webTimer); return; }
-    const load = async () => { try { drawWeb(await api('GET', '/api/control')); } catch (e) { drawWeb(null, e.message); } };
-    await load();
-    clearInterval(U.webTimer); U.webTimer = setInterval(() => { if (!U.web.classList.contains('hidden') && !U.web.contains(document.activeElement)) load(); }, 3000);
   }
 
   // ====================================================================================================== main loop
