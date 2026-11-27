@@ -71,7 +71,7 @@
 
   <section class="about">
     <h2>How this works</h2>
-    <p>This is the real Kestrel 5.0 engine, compiled to WebAssembly and run by your browser on one thread. It gives the same moves and the same node counts as the Windows, Linux and macOS programs (the standard 8-position benchmark searches 407,653 nodes in both); it is slower because it uses one thread and no AVX2 (roughly a sixth to a twelfth of the speed of the Windows program on the same computer)<span id="simd"></span>.
+    <p>This is the real Kestrel 5.0 engine, compiled to WebAssembly and run by your browser on one thread. It gives the same moves and the same node counts as the Windows, Linux and macOS programs (the standard 8-position benchmark searches 407,653 nodes in both); it is slower because it uses one thread and no AVX2 (roughly a quarter of the speed of the Windows program on the same computer)<span id="simd"></span>.
       The first visit loads Kestrel&rsquo;s 39 MB neural network (about 29 MB over the network, packed); your browser keeps a copy for the next visit. Nothing is sent anywhere: the game and the engine stay on your device.</p>
     <p><strong>Strength.</strong> Kestrel always plays at full strength here; the only setting is how long it may think for each move (the longer, the stronger). It varies its first moves a little.</p>
     <p>Looking for the engine itself, for your chess program? <a href="../#download">Download Kestrel</a> &middot; <a href="https://github.com/Alon-Berg/Kestrel-chess-engine">source code</a> (MIT licence).</p>
