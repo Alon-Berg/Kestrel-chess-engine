@@ -3,11 +3,11 @@
 The twelve weaker levels in `docs/play/levels.js` (the play page offers only full strength since 2026-11-12) were measured with the programs in this folder. They use the same
 `levels.js` and the same WebAssembly engine as the page, so a number measured here is a number of the levels. The table of results is in [`docs/BUILDING.md`](../../../docs/BUILDING.md#the-levels-of-the-page).
 
-You need Deno (https://deno.com), Python 3 with `chess` and `numpy`, the network of the release (`kestrel_net_3_2.bin`), and for two of the steps Stockfish and fastchess.
+You need Deno (https://deno.com), Python 3 with `chess` and `numpy`, the network of the release (`kestrel_net_5_0.bin`), and for two of the steps Stockfish and fastchess.
 
 | Environment variable | Meaning |
 |---|---|
-| `KESTREL_NET` | the network file (default: `kestrel_net_3_2.bin` in the current folder) |
+| `KESTREL_NET` | the network file (default: `kestrel_net_5_0.bin` in the current folder) |
 | `STOCKFISH` | Stockfish (judging the games, and the ladder) |
 | `FASTCHESS` | fastchess (the ladder) |
 | `DENO` | Deno (default: `deno` from the PATH) |
@@ -20,7 +20,7 @@ Run everything in this folder (`cd tests/web/levels_lab`). The games are written
 
 ```
 # 1. games: every level of the page against itself (equal opponents, as in rating statistics), and against its neighbours
-set KESTREL_NET=C:\path\to\kestrel_net_3_2.bin
+set KESTREL_NET=C:\path\to\kestrel_net_5_0.bin
 python run_selfplay.py --tag self --levels 1,2,3,4,5,6,7,8,9,10,11,12 --games 60
 python table_tools.py pairs tables/final.json out/pairs.json
 python run_selfplay.py --tag nb --pairs-file out/pairs.json --games 150

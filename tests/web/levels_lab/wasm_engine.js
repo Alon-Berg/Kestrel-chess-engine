@@ -1,9 +1,9 @@
 // Runs the real WebAssembly Kestrel of the play page under Deno (same wasm file, same network, same UCI conversation as docs/play/engine-worker.js).
-//   the network: environment variable KESTREL_NET (default: kestrel_net_3_2.bin in the current folder)
+//   the network: environment variable KESTREL_NET (default: kestrel_net_5_0.bin in the current folder)
 import { instantiate } from '../../../docs/play/kestrel-wasi.js';
 
 const PLAY = new URL('../../../docs/play/', import.meta.url);
-export const DEFAULT_NET = Deno.env.get('KESTREL_NET') || 'kestrel_net_3_2.bin';
+export const DEFAULT_NET = Deno.env.get('KESTREL_NET') || 'kestrel_net_5_0.bin';
 
 export async function startWasm(opts = {}) {
   const wasm = await Deno.readFile(new URL(opts.simd === false ? 'kestrel-nosimd.wasm' : 'kestrel.wasm', PLAY));

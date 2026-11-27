@@ -58,6 +58,6 @@ console.log('%d positions, %d SAN strings compared; failures: %d', n, sans, fail
   if (status.reason !== 'threefold repetition') fails++;
 }
 // ---- pgn
-console.log(buildPgn(START_FEN, ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5'], '*', { White: 'Human', Black: 'Kestrel 3.2' }));
+console.log(buildPgn(START_FEN, ['e2e4', 'e7e5', 'g1f3', 'b8c6', 'f1b5'], '*', { White: 'Human', Black: 'Kestrel 5.0' }));
 console.log(fails ? 'FAILED' : 'ALL OK');
 Deno.exit(fails ? 1 : 0);

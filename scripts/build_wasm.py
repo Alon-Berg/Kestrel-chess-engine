@@ -1,5 +1,5 @@
-r"""Compiles src/kestrel_3_2_wasm.cpp (scripts/make_wasm.py) to docs/play/kestrel.wasm (with WebAssembly SIMD) and docs/play/kestrel-nosimd.wasm with Zig 0.15 (clang).
-usage: python scripts/build_wasm.py [--zig path/to/zig] [--src src/kestrel_3_2_wasm.cpp] [--out-dir docs/play]
+r"""Compiles src/kestrel_5_0_wasm.cpp (scripts/make_wasm.py) to docs/play/kestrel.wasm (with WebAssembly SIMD) and docs/play/kestrel-nosimd.wasm with Zig 0.15 (clang).
+usage: python scripts/build_wasm.py [--zig path/to/zig] [--src src/kestrel_5_0_wasm.cpp] [--out-dir docs/play]
 The Zig compiler is found with --zig, the environment variable ZIG or on the PATH.  A Zig that cannot build wasm32-wasi will not do: https://ziglang.org/download/ (0.15.x).
 Compiling takes about 20 seconds per file.  The network is not part of the files: see scripts/pack_net.py."""
 import os
@@ -9,7 +9,7 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-opts = {"--zig": os.environ.get("ZIG") or shutil.which("zig") or "", "--src": os.path.join(ROOT, "src", "kestrel_3_2_wasm.cpp"), "--out-dir": os.path.join(ROOT, "docs", "play")}
+opts = {"--zig": os.environ.get("ZIG") or shutil.which("zig") or "", "--src": os.path.join(ROOT, "src", "kestrel_5_0_wasm.cpp"), "--out-dir": os.path.join(ROOT, "docs", "play")}
 a = sys.argv[1:]
 while a:
     k = a.pop(0)

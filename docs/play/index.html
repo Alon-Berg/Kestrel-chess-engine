@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Play Kestrel in your browser</title>
-<meta name="description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 3.2 runs inside the page as WebAssembly.">
+<meta name="description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 5.0 runs inside the page as WebAssembly.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Kestrel chess engine">
 <meta property="og:title" content="Play Kestrel in your browser">
-<meta property="og:description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 3.2 runs inside the page as WebAssembly.">
+<meta property="og:description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 5.0 runs inside the page as WebAssembly.">
 <meta property="og:url" content="https://alon-berg.github.io/Kestrel-chess-engine/play/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Play Kestrel in your browser">
-<meta name="twitter:description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 3.2 runs inside the page as WebAssembly.">
+<meta name="twitter:description" content="Play a game of chess against the Kestrel engine right here: nothing to download or install. Kestrel 5.0 runs inside the page as WebAssembly.">
 <link rel="stylesheet" href="play.css">
 </head>
 <body>
@@ -23,12 +23,12 @@
 </header>
 
 <main>
-  <p class="eyebrow">Kestrel 3.2 &middot; runs in this page &middot; nothing to install</p>
+  <p class="eyebrow">Kestrel 5.0 &middot; runs in this page &middot; nothing to install</p>
   <h1>Play Kestrel</h1>
 
   <div class="game">
     <section class="boardcol" aria-label="Game">
-      <div class="player" id="topname"><span class="who">Kestrel 3.2</span><span class="tag" id="toptag"></span></div>
+      <div class="player" id="topname"><span class="who">Kestrel 5.0</span><span class="tag" id="toptag"></span></div>
       <div class="boardwrap">
         <div id="board"></div>
         <div id="promo" class="promo" hidden></div>
@@ -71,8 +71,8 @@
 
   <section class="about">
     <h2>How this works</h2>
-    <p>This is the real Kestrel 3.2 engine, compiled to WebAssembly and run by your browser on one thread. It gives the same moves and the same node counts as the Windows, Linux and macOS programs (the standard 8-position benchmark searches 859,322 nodes in both); it is slower because it uses one thread and no AVX2 (about a sixth of the speed of the Windows program on the same computer)<span id="simd"></span>.
-      The first visit loads Kestrel&rsquo;s 76 MB neural network (about 50 MB over the network, packed); your browser keeps a copy for the next visit. Nothing is sent anywhere: the game and the engine stay on your device.</p>
+    <p>This is the real Kestrel 5.0 engine, compiled to WebAssembly and run by your browser on one thread. It gives the same moves and the same node counts as the Windows, Linux and macOS programs (the standard 8-position benchmark searches 407,653 nodes in both); it is slower because it uses one thread and no AVX2 (roughly a sixth to a twelfth of the speed of the Windows program on the same computer)<span id="simd"></span>.
+      The first visit loads Kestrel&rsquo;s 39 MB neural network (about 29 MB over the network, packed); your browser keeps a copy for the next visit. Nothing is sent anywhere: the game and the engine stay on your device.</p>
     <p><strong>Strength.</strong> Kestrel always plays at full strength here; the only setting is how long it may think for each move (the longer, the stronger). It varies its first moves a little.</p>
     <p>Looking for the engine itself, for your chess program? <a href="../#download">Download Kestrel</a> &middot; <a href="https://github.com/Alon-Berg/Kestrel-chess-engine">source code</a> (MIT licence).</p>
   </section>

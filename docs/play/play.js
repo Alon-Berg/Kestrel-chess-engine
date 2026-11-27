@@ -4,16 +4,16 @@ import { BoardView, pieceGlyph } from './board.js';
 import { Engine, parseInfo } from './engine.js';
 import { LEVELS, chooseMove } from './levels.js';
 
-const VERSION = '3.2';
+const VERSION = '5.0';
 const CONFIG = {
   wasmUrl: 'kestrel.wasm',
   wasmNoSimdUrl: 'kestrel-nosimd.wasm',
-  netUrl: 'kestrel_net_3_2.pk.gz',   // the network of 3.2 as made by scripts/pack_net.py
-  netSize: 76322400,                 // bytes of the network file once unpacked
-  netSha256: '0d26104e6f228e498c7fbe4c3f1d5e8fab5df1cefad64f702b868aa74f8218cd',
-  shuffleStart: 64, shuffleCount: 37750272,      // layout of the packed file (see pack_net.py)
-  netDownloadSize: 44200000,         // about as many bytes are downloaded (only used for the progress bar when the server hides the size)
-  cacheName: 'kestrel-net-3.2',
+  netUrl: 'kestrel_net_5_0.pk.gz',   // the network of 5.0 as made by scripts/pack_net.py
+  netSize: 38576736,                 // bytes of the network file once unpacked
+  netSha256: '28fea24937cd086198534c4a24bdb6d117326d2919debb2dbbb86cc5dca3f74c',
+  shuffleStart: 64, shuffleCount: 0,      // layout of the packed file (see pack_net.py)
+  netDownloadSize: 28735517,         // about as many bytes are downloaded (only used for the progress bar when the server hides the size)
+  cacheName: 'kestrel-net-5.0',
   hash: 32,                          // MB of hash table
 };
 
