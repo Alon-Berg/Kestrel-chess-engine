@@ -11,7 +11,7 @@ on:
       tag:
         description: "Release tag whose published files are tested"
         required: false
-        default: "v5.0"
+        default: "v5.1"
   push:
     paths:
       - ".github/workflows/verify-release.yml"
@@ -29,10 +29,12 @@ on:
       - "src/kestrel_4_2.cpp"
       - "src/kestrel_5_0_base.cpp"
       - "src/kestrel_5_0.cpp"
+      - "src/kestrel_5_1_base.cpp"
+      - "src/kestrel_5_1.cpp"
 
 env:
   REPO: Alon-Berg/Kestrel-chess-engine
-  TAG: ${{ github.event.inputs.tag || 'v5.0' }}
+  TAG: ${{ github.event.inputs.tag || 'v5.1' }}
 
 jobs:
   shipped-binaries:
@@ -68,7 +70,7 @@ jobs:
           uname -a || true
       - name: Depth-12 bench must give the recorded node count
         run: |
-          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0|v3.1|v3.2) EXPECT=859322;; v4.0|v4.1) EXPECT=712768;; v4.2) EXPECT=662820;; v5.0) EXPECT=407653;; *) EXPECT="";; esac
+          case "$TAG" in v2.1|v2.2|v2.3) EXPECT=1051844;; v2.0) EXPECT=934326;; v3.0|v3.1|v3.2) EXPECT=859322;; v4.0|v4.1) EXPECT=712768;; v4.2) EXPECT=662820;; v5.0|v5.1) EXPECT=407653;; *) EXPECT="";; esac
           OUT=$("$EXE" bench 12 | tail -n 1); echo "$OUT"
           if [ -n "$EXPECT" ]; then echo "$OUT" | grep -q "nodes $EXPECT " || { echo "bench differs from $EXPECT"; exit 1; }; fi
       - name: UCI smoke test
@@ -95,7 +97,7 @@ jobs:
   tablebases:
     name: Syzygy on ${{ matrix.asset }}
     # Syzygy support starts with 3.0
-    if: ${{ !startsWith(github.event.inputs.tag || 'v5.0', 'v2.') && !startsWith(github.event.inputs.tag || 'v5.0', 'v1.') }}
+    if: ${{ !startsWith(github.event.inputs.tag || 'v5.1', 'v2.') && !startsWith(github.event.inputs.tag || 'v5.1', 'v1.') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -233,6 +235,13 @@ jobs:
         run: |
           python tests/breakers.py "$EXE" | tee o.txt
           grep -F "breakers: PASS" o.txt
+      - name: Robustness - input closed, ponder moves, file names with accents / Hebrew / Chinese letters and quotes, damaged networks (5.1 and later)
+        if: ${{ !startsWith(env.TAG, 'v1.') && !startsWith(env.TAG, 'v2.') && !startsWith(env.TAG, 'v3.') && !startsWith(env.TAG, 'v4.') && env.TAG != 'v5.0' }}
+        run: |
+          VER="${TAG#v}"
+          curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/${TAG}/kestrel_net_${VER//./_}.bin"
+          python tests/robust_test.py "$EXE" kestrel_net.bin | tee o.txt
+          grep -F "robust_test: PASS" o.txt
 
   sanitizers:
     name: AddressSanitizer + UBSan on Linux
@@ -248,9 +257,9 @@ jobs:
           python-version: "3.12"
       - run: pip install chess
       - name: Network file
-        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v5.0/kestrel_net_5_0.bin"
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v5.1/kestrel_net_5_1.bin"
       - name: Compile with clang, AddressSanitizer and UBSan
-        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_5_0.cpp
+        run: clang++ -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=undefined -DNDEBUG -pthread -o kestrel_asan src/kestrel_5_1.cpp
       - name: Accumulator self-test under the sanitizers
         run: |
           set +e
@@ -303,6 +312,11 @@ jobs:
           done
           TB_MAXMEN=4 python tests/tb_test.py "$(pwd)/kestrel_asan" tb 150 1 3 | tee o.txt
           grep -F "tb_test: PASS" o.txt
+      - name: Robustness under the sanitizers - ponder moves, file names, damaged networks (5.1 and later)
+        if: ${{ always() }}
+        run: |
+          python tests/robust_test.py "$(pwd)/kestrel_asan" kestrel_net.bin tb | tee o.txt
+          grep -F "robust_test: PASS" o.txt
 
   build-from-source:
     name: build on ${{ matrix.os }}
@@ -314,16 +328,16 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v4
-      - name: Network file (the network of 5.0, kestrel_net_5_0.bin of the release; the assembler reads it from the current directory)
-        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v5.0/kestrel_net_5_0.bin"
-      - name: src/kestrel_5_0.cpp must be the output of scripts/make_threads.py
+      - name: Network file (the network of 5.1 = that of 5.0, kestrel_net_5_1.bin of the release; the assembler reads it from the current directory)
+        run: curl -fsSL -o kestrel_net.bin "https://github.com/${REPO}/releases/download/v5.1/kestrel_net_5_1.bin"
+      - name: src/kestrel_5_1.cpp must be the output of scripts/make_threads.py
         run: |
-          python3 scripts/make_threads.py 128 generated.cpp --src src/kestrel_5_0_base.cpp --id-name "Kestrel 5.0"
-          cmp generated.cpp src/kestrel_5_0.cpp
-      - name: Compile src/kestrel_5_0.cpp
+          python3 scripts/make_threads.py 128 generated.cpp --src src/kestrel_5_1_base.cpp --id-name "Kestrel 5.1"
+          cmp generated.cpp src/kestrel_5_1.cpp
+      - name: Compile src/kestrel_5_1.cpp
         run: |
-          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_5_0.cpp
-          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_5_0.cpp; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then clang++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_5_1.cpp
+          else g++ -std=c++17 -O3 -DNDEBUG -pthread -o kestrel src/kestrel_5_1.cpp; fi
       - name: Depth-12 bench must give the number recorded in tests/BENCH
         run: |
           EXPECT=$(tr -d '\r\n ' < tests/BENCH)
