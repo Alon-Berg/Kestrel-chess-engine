@@ -1,6 +1,6 @@
-r"""Kestrel 5.0 (many search threads): turns src/kestrel_5_0_base.cpp (the 5.0 source with 8 search copies) into a source with N search copies S0..S(N-1) and a larger Hash maximum.
-usage: python scripts/make_threads.py <N> [out.cpp] [--hash-max MB] [--src file] [--id-name "Kestrel 5.0"] [--pawn-bss 0|1] [--mem 0|1] [--prio 0|1] [--nodes 0|1] [--depth1 0|1] [--async 0|1]
-src/kestrel_5_0.cpp is the output of `python scripts/make_threads.py 128 src/kestrel_5_0.cpp --id-name "Kestrel 5.0"` (byte for byte); with `--src src/kestrel_3_0.cpp --id-name "Kestrel 3.1"` the script
+r"""Kestrel 5.1 (many search threads): turns src/kestrel_5_1_base.cpp (the 5.1 source with 8 search copies) into a source with N search copies S0..S(N-1) and a larger Hash maximum.
+usage: python scripts/make_threads.py <N> [out.cpp] [--hash-max MB] [--src file] [--id-name "Kestrel 5.1"] [--pawn-bss 0|1] [--mem 0|1] [--prio 0|1] [--nodes 0|1] [--depth1 0|1] [--async 0|1]
+src/kestrel_5_1.cpp is the output of `python scripts/make_threads.py 128 src/kestrel_5_1.cpp --id-name "Kestrel 5.1"` (byte for byte); with `--src src/kestrel_3_0.cpp --id-name "Kestrel 3.1"` the script
 makes the source of 3.1 (src/kestrel_3_1.cpp) except for the huge-page advice of 13.
 
 How 3.0 got its limit of 8 threads: the search (search, qsearch, move ordering, history / continuation / correction / pawn tables, the per-thread position with its accumulator ring) is compiled once
@@ -41,8 +41,8 @@ import difflib, os, re, sys
 D = os.path.dirname(os.path.abspath(__file__))
 args = sys.argv[1:]
 N = int(args.pop(0))
-opts = {"--hash-max": "1048576", "--src": os.path.join(os.path.dirname(D), "src", "kestrel_5_0_base.cpp"), "--id-name": "Kestrel 5.0", "--pawn-bss": "1", "--mem": "1", "--prio": "1", "--nodes": "1", "--depth1": "1", "--async": "1"}
-out = os.path.join(os.path.dirname(D), "src", "kestrel_5_0.cpp")       # (default name; the plain-clone variants of 2026-11-06 were written with the old default)
+opts = {"--hash-max": "1048576", "--src": os.path.join(os.path.dirname(D), "src", "kestrel_5_1_base.cpp"), "--id-name": "Kestrel 5.1", "--pawn-bss": "1", "--mem": "1", "--prio": "1", "--nodes": "1", "--depth1": "1", "--async": "1"}
+out = os.path.join(os.path.dirname(D), "src", "kestrel_5_1.cpp")       # (default name; the plain-clone variants of 2026-11-06 were written with the old default)
 i = 0
 while i < len(args):
     if args[i] in opts: opts[args[i]] = args[i + 1]; i += 2
@@ -121,9 +121,9 @@ if opts["--depth1"] == "1":
     rep("long long softMs = 0, hardMs = 0, nodeLimit = 0;\n", "long long softMs = 0, hardMs = 0, nodeLimit = 0;\nstatic std::atomic<bool> depth1Done{true};     // 3.1: false from the start of think() until its first iteration (depth 1) has completed; a time limit cannot end a search before that\n")
     rep("    if (hardMs > 0 && elapsedMs() >= hardMs) stopFlag = true;\n", "    if (hardMs > 0 && elapsedMs() >= hardMs && depth1Done.load(std::memory_order_relaxed)) stopFlag = true;\n", N)
     rep("void think() {\n    winFullSpeed();\n", "void think() {\n    winFullSpeed();\n    struct Depth1Guard { Depth1Guard() { depth1Done = false; } ~Depth1Guard() { depth1Done = true; } } depth1Guard;       // 3.1: see depth1Done\n")
-    if "        if (stopFlag) break;\n        int prevScoreIt = bestScore, prevBestIt = bestMove;\n" in t:      # the sources up to 4.2
+    if "        if (stopFlag) break;\n        int prevScoreIt = bestScore, prevBestIt = bestMove;\n" in t:      # the sources up to 5.0
         rep("        if (stopFlag) break;\n        int prevScoreIt = bestScore, prevBestIt = bestMove;\n", "        if (stopFlag) break;\n        depth1Done = true;\n        int prevScoreIt = bestScore, prevBestIt = bestMove;\n")
-    else:      # 5.0: the end of an aborted iteration is a block (PART: the best move of the unfinished iteration is kept), then the first iteration is done
+    else:      # 5.1: the end of an aborted iteration is a block (PART: the best move of the unfinished iteration is kept), then the first iteration is done
         rep("            break;\n        }\n        int prevScoreIt = bestScore, prevBestIt = bestMove;\n", "            break;\n        }\n        depth1Done = true;\n        int prevScoreIt = bestScore, prevBestIt = bestMove;\n")
 if opts["--async"] == "1":
     # 3.0 started the helpers in think() before the main search began: 127 threads take 6 - 14 ms on a computer with enough processors and 35 - 100 ms and more with fewer processors than threads or a busy computer,
@@ -226,7 +226,7 @@ static void zeroMem(void* p, size_t n) {
         "try { tt.reset(new TTE[p + 4]); ttBase = (TTE*)(((uintptr_t)tt.get() + 63) & ~(uintptr_t)63); ttMask = p - 1; adviseHuge((void*)ttBase, p * sizeof(TTE)); zeroMem((void*)ttBase, p * sizeof(TTE)); ttRequestedMB = requested; ttDirty = false; return; }")
 t = t.replace("// Claude 1.0 - a from-scratch UCI chess engine (bitboards, alpha-beta, hand-made eval).\n",
               "// Claude 1.0 - a from-scratch UCI chess engine (bitboards, alpha-beta, hand-made eval).\n"
-              "// %s: Kestrel 5.0 with %d search copies (Threads up to %d) and Hash up to %d MB%s; generated by scripts/make_threads.py from src/kestrel_5_0_base.cpp\n" % (
+              "// %s: Kestrel 5.1 with %d search copies (Threads up to %d) and Hash up to %d MB%s; generated by scripts/make_threads.py from src/kestrel_5_1_base.cpp\n" % (
                   ID_NAME, N, N, HASH_MAX, ", pawn table zero-initialised (in .bss)" if opts["--pawn-bss"] == "1" else ""), 1)
 new_lines = t.split("\n")
 nb = check_copies(new_lines, N)

@@ -1,0 +1,24 @@
+Kestrel 5.1: thread tests on one Windows laptop (22 logical processors: 6 performance cores with two threads each, 8 efficiency cores, 2 low-power cores; 31 GB).
+The thread code of 5.1 is that of 3.1, 3.2, 4.0 and 5.0: the scaling measurements, the hash tests and the matches of more threads against one thread are in threads_3_1.txt. Below: the checks of the 5.1 release exe.
+
+===== (release) single-thread identity of the packaged exe with the 8-copy build of the same source (24 positions, depth 14 and go nodes 30000) =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe identity_check.py my_engine\dev\b41\k51base.exe kestrel_builds_work_51\windows_x86-64-v3\kestrel.exe   (cwd my_engine\dev\b31mt)
+reference k51base.exe: 24 positions, total nodes 3655226
+kestrel.exe: uci output differs in 3 line(s) (lengths 25 / 25): ['id name Kestrel 5.1', 'option name Hash type spin default 256 min 1 max 1048576', 'option name Threads type spin default 1 min 1 max 128']
+   depth-14 searches: ALL 24 IDENTICAL (nodes, score, best move, PV) (total nodes 3655226)
+   go nodes 30000 searches: ALL 24 IDENTICAL
+
+===== (release) the same against the packaged 5.0 exe =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe identity_check.py kestrel_builds_work_50\windows_x86-64-v3\kestrel.exe kestrel_builds_work_51\windows_x86-64-v3\kestrel.exe   (cwd my_engine\dev\b31mt)
+reference kestrel.exe: 24 positions, total nodes 3655226
+kestrel.exe: uci output differs in 1 line(s) (lengths 25 / 25): ['id name Kestrel 5.1']
+   depth-14 searches: ALL 24 IDENTICAL (nodes, score, best move, PV) (total nodes 3655226)
+   go nodes 30000 searches: ALL 24 IDENTICAL
+
+===== (release) short searches with 128 threads must still search (tests\depth1_test.py) =====
+COMMAND: AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\python.exe kestrel_repo_5_1\tests\depth1_test.py kestrel_builds_work_51\windows_x86-64-v3\kestrel.exe 128 60 60   (cwd my_engine)
+Threads 128, go movetime 60, 60 searches: 0 ended without a result, 0 stalemating moves, 0 without a bestmove
+depth1_test: PASS
+
+===== (release) AddressSanitizer + UBSan run of the release source =====
+(not run on the laptop for 5.1: clang was no longer installed; the workflow job AddressSanitizer + UBSan on Linux runs the source on GitHub's machine)
